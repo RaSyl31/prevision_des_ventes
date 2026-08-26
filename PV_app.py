@@ -489,10 +489,10 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DES PRÉVISIONS AMÉLIORÉE
+# 6. FONCTION DE CALCUL DES PRÉVISIONS (CAGR)
 # --------------------------------------------------------------------
 @st.cache_data
-def calculer_previsions(df_hist, annees_prev):
+def calculer_previsions_cagr(df_hist, annees_prev):
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     previsions = []
 
@@ -501,40 +501,42 @@ def calculer_previsions(df_hist, annees_prev):
         if len(serie) == 0:
             continue
 
-        dernier_mois = serie.index.max()
-        date_debut = dernier_mois - pd.DateOffset(years=3)
-        serie_recente = serie[serie.index >= date_debut]
-        if len(serie_recente) == 0:
-            serie_recente = serie
-
-        # Si moins de 12 points, on utilise la moyenne comme prévision constante
-        if len(serie_recente) < 12:
-            pente = 0
-            derniere_valeur = serie_recente.mean() if len(serie_recente) > 0 else 0
+        # Calcul du CAGR sur les données annuelles
+        # Regrouper par année et prendre la somme (ou la moyenne)
+        annuel = serie.resample('Y').sum()
+        if len(annuel) < 2:
+            # Si moins de 2 années, on utilise la moyenne mensuelle
+            taux_mensuel = 0
+            derniere_valeur = serie.iloc[-1] if len(serie) > 0 else 0
         else:
-            x = np.arange(len(serie_recente))
-            y = serie_recente.values
-            coeffs = np.polyfit(x, y, 1)
-            pente = coeffs[0]
-            derniere_valeur = serie_recente.iloc[-1]
+            valeur_initiale = annuel.iloc[0]
+            valeur_finale = annuel.iloc[-1]
+            nb_annees = len(annuel) - 1
+            if valeur_initiale > 0 and valeur_finale > 0:
+                cagr = (valeur_finale / valeur_initiale) ** (1 / nb_annees) - 1
+                # Convertir en taux mensuel approximatif
+                taux_mensuel = (1 + cagr) ** (1/12) - 1
+            else:
+                taux_mensuel = 0
+            derniere_valeur = annuel.iloc[-1] / 12  # moyenne mensuelle de la dernière année
 
-        segment_val, marque_val, format_val, contenances_val, ref_val, agence_val = keys
-
+        # Générer les prévisions mensuelles
+        dernier_mois = serie.index.max()
         for annee in annees_prev:
             for mois in range(1, 13):
                 date_prev = pd.Timestamp(year=annee, month=mois, day=1)
                 nb_mois = (date_prev.year - dernier_mois.year) * 12 + (date_prev.month - dernier_mois.month)
                 if nb_mois < 0:
                     continue
-                prev_value = max(0, derniere_valeur + pente * nb_mois)
+                prev_value = derniere_valeur * (1 + taux_mensuel) ** nb_mois
                 previsions.append({
                     'date': date_prev,
-                    'segment': segment_val,
-                    'marque': marque_val,
-                    'format': format_val,
-                    'contenances': contenances_val,
-                    'Référence': ref_val,
-                    'agence': agence_val,
+                    'segment': keys[0],
+                    'marque': keys[1],
+                    'format': keys[2],
+                    'contenances': keys[3],
+                    'Référence': keys[4],
+                    'agence': keys[5],
                     'valeur': prev_value
                 })
 
@@ -577,13 +579,11 @@ else:
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
 
-df_prev = calculer_previsions(df_hist, annees_prev)
+df_prev = calculer_previsions_cagr(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
 # 10. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
 # --------------------------------------------------------------------
-# (Optionnel) Si un article actif n'est toujours pas dans df_prev, on utilise la moyenne de tout l'historique
-# pour éviter les zéros. Ici, on ne le fait que si nécessaire.
 moyenne_globale = df_hist['valeur'].mean() if not df_hist.empty else 0
 articles_prev = set(df_prev['Référence'].unique())
 articles_manquants = set(df_active['article_actif']) - articles_prev
