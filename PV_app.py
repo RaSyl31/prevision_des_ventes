@@ -152,8 +152,8 @@ df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_acti
 # --------------------------------------------------------------------
 # 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
 # --------------------------------------------------------------------
-# (Insérez ici le dictionnaire REFERENCE_TO_ARTICLE complet fourni par l'utilisateur)
-# (Pour des raisons de longueur, je le remets en entier ci-dessous)
+# (Insérer ici le dictionnaire REFERENCE_TO_ARTICLE complet fourni par l'utilisateur)
+# Pour des raisons de longueur, je le remets ci-dessous en entier.
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
     "102-THB Pilsener 33 cl VER": "THB Pilsener 33 cl VER",
@@ -396,7 +396,6 @@ def nettoyer_nombre(val):
         return 0.0
 
 def extraire_contenance_cl(article_str):
-    """Extrait la contenance en cl à partir du libellé de l'article."""
     m = re.search(r'(\d+)\s*CL', article_str, re.IGNORECASE)
     if m:
         return int(m.group(1))
@@ -406,14 +405,13 @@ def extraire_contenance_cl(article_str):
     return None
 
 def extraire_format(article_str):
-    """Extrait le format (VER, PET, CAN, FUT, BOI) à partir du libellé."""
     m = re.search(r'\b(VER|PET|CAN|FUT|BOI)\b', article_str)
     if m:
         return m.group(1)
     return None
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CHARGEMENT ET NETTOYAGE (avec cache)
+# 5. FONCTION DE CHARGEMENT ET NETTOYAGE AVEC SIMILARITÉ
 # --------------------------------------------------------------------
 @st.cache_data
 def traiter_fichier(file_bytes, filename):
@@ -426,6 +424,7 @@ def traiter_fichier(file_bytes, filename):
     if not all(col in df_raw.columns for col in required_cols):
         raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
 
+    # Filtrer les lignes de détail
     df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
 
     # Mapper la référence vers l'article standardisé
@@ -442,13 +441,59 @@ def traiter_fichier(file_bytes, filename):
     df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
-    # Filtrer pour ne garder que les articles actifs
+    # Filtrer pour ne garder que les articles actifs présents
     df = df[df['Référence'].isin(df_active['article_actif'])]
+
+    # --------------------------------------------------------------------
+    # Gestion des articles actifs manquants (similarité)
+    # --------------------------------------------------------------------
+    articles_presents = set(df['Référence'].unique())
+    articles_actifs_set = set(df_active['article_actif'])
+    articles_manquants = articles_actifs_set - articles_presents
+
+    if articles_manquants:
+        # DataFrame des articles présents avec leurs caractéristiques
+        df_presents = df[['Référence', 'segment', 'marque', 'format', 'contenance_cl']].drop_duplicates()
+        for article_manquant in articles_manquants:
+            info_manquant = df_active[df_active['article_actif'] == article_manquant].iloc[0]
+            seg_manquant = info_manquant['segment_actif']
+            marque_manquant = info_manquant['marque_actif']
+            format_manquant = extraire_format(article_manquant)
+            contenance_manquant = extraire_contenance_cl(article_manquant)
+
+            # Chercher article similaire
+            candidats = df_presents[
+                (df_presents['marque'] == marque_manquant) &
+                (df_presents['format'] == format_manquant)
+            ]
+            if candidats.empty:
+                candidats = df_presents[
+                    (df_presents['segment'] == seg_manquant) &
+                    (df_presents['format'] == format_manquant)
+                ]
+            if candidats.empty:
+                candidats = df_presents[df_presents['segment'] == seg_manquant]
+
+            if not candidats.empty:
+                candidats = candidats.copy()
+                candidats['diff_contenance'] = (candidats['contenance_cl'] - contenance_manquant).abs()
+                meilleur = candidats.sort_values('diff_contenance').iloc[0]
+                article_similaire = meilleur['Référence']
+
+                lignes_similaires = df[df['Référence'] == article_similaire].copy()
+                if not lignes_similaires.empty:
+                    lignes_similaires['Référence'] = article_manquant
+                    lignes_similaires['segment'] = seg_manquant
+                    lignes_similaires['marque'] = marque_manquant
+                    lignes_similaires['format'] = format_manquant
+                    lignes_similaires['contenances'] = info_manquant.get('contenances', '')
+                    lignes_similaires['contenance_cl'] = contenance_manquant
+                    df = pd.concat([df, lignes_similaires], ignore_index=True)
 
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
+# 6. FONCTION DE CALCUL DES PRÉVISIONS
 # --------------------------------------------------------------------
 @st.cache_data
 def calculer_previsions(df_hist, annees_prev):
@@ -534,7 +579,7 @@ annees_prev = [2027, 2028, 2029, 2030, 2031]
 df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 10. ASSURER QUE TOUS LES ARTICLES ACTIFS APPARAISSENT AVEC ZÉROS
+# 10. AJOUT DE ZÉROS POUR LES ARTICLES TOUJOURS SANS DONNÉES
 # --------------------------------------------------------------------
 nouvelles_lignes = []
 for _, row_active in df_active.iterrows():
@@ -558,7 +603,7 @@ for _, row_active in df_active.iterrows():
                         'segment': seg,
                         'marque': marque,
                         'format': format_art,
-                        'contenances': '',  # ou on peut calculer la contenance réelle
+                        'contenances': '',  # on peut laisser vide
                         'Référence': article,
                         'agence': agence,
                         'valeur': 0.0
