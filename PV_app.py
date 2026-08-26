@@ -189,16 +189,13 @@ if uploaded_file is None:
 
 try:
     if uploaded_file.name.endswith('.csv'):
-        # Pour CSV, on ne force pas le type, on lira en str, puis conversion plus bas
         df_raw = pd.read_csv(uploaded_file, sep='\t')
     else:
-        # Pour Excel, pas de dtype imposé, on lira tout en type par défaut
         df_raw = pd.read_excel(uploaded_file)
 except Exception as e:
     st.error(f"Erreur de lecture du fichier : {e}")
     st.stop()
 
-# Vérifier les colonnes requises
 required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
 if not all(col in df_raw.columns for col in required_cols):
     st.error(f"Le fichier doit contenir les colonnes : {', '.join(required_cols)}")
@@ -216,9 +213,8 @@ df['Référence'] = df['Référence'].apply(nettoyer_reference)
 # Filtrer pour ne garder que les articles actifs
 df = df[df['Référence'].isin(df_active['article_actif'])]
 
-# Convertir la colonne Année en numérique (gère les espaces, valeurs manquantes)
+# Convertir la colonne Année en numérique
 df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
-# Supprimer les lignes où Année est NaN
 df = df.dropna(subset=['Année'])
 df['Année'] = df['Année'].astype(int)
 
@@ -263,7 +259,8 @@ group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agen
 
 previsions = []
 
-for _, group in df_hist.groupby(group_cols):
+# Correction : utiliser keys pour récupérer les valeurs de groupement
+for keys, group in df_hist.groupby(group_cols):
     serie = group.sort_values('date').set_index('date')['valeur']
     if len(serie) < 12:
         continue
@@ -280,6 +277,9 @@ for _, group in df_hist.groupby(group_cols):
     pente = coeffs[0]
     derniere_valeur = serie_recente.iloc[-1]
 
+    # keys est un tuple (segment, marque, format, contenances, Référence, agence)
+    segment_val, marque_val, format_val, contenances_val, ref_val, agence_val = keys
+
     for annee in annees_prev:
         for mois in range(1, 13):
             date_prev = pd.Timestamp(year=annee, month=mois, day=1)
@@ -289,12 +289,12 @@ for _, group in df_hist.groupby(group_cols):
             prev_value = max(0, derniere_valeur + pente * nb_mois)
             previsions.append({
                 'date': date_prev,
-                'segment': group[0],
-                'marque': group[1],
-                'format': group[2],
-                'contenances': group[3],
-                'Référence': group[4],
-                'agence': group[5],
+                'segment': segment_val,
+                'marque': marque_val,
+                'format': format_val,
+                'contenances': contenances_val,
+                'Référence': ref_val,
+                'agence': agence_val,
                 'valeur': prev_value
             })
 
