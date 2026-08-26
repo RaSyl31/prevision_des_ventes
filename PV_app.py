@@ -1,16 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from prophet import Prophet
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import random
 
+# --------------------------------------------------------------------
 # Configuration de la page
-st.set_page_config(page_title="Prévision des ventes", layout="wide")
+# --------------------------------------------------------------------
+st.set_page_config(page_title="Analyse des ventes", layout="wide")
 
 # --------------------------------------------------------------------
-# CSS personnalisé : fond noir et accents rouges
+# CSS personnalisé : fond noir, texte blanc, sidebar plus foncée, accents rouges
 # --------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -19,30 +19,40 @@ st.markdown("""
         background-color: #000000;
     }
 
+    /* Texte principal blanc */
+    .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable {
+        color: #FFFFFF;
+    }
+
     /* Titres en rouge */
     h1, h2, h3, h4, h5, h6 {
         color: #E63946;
     }
 
-    /* Texte général en blanc */
-    .stMarkdown, .stText, .stCaption {
+    /* Sidebar : fond noir plus foncé, texte blanc */
+    .css-1d391kg, .css-1lcbmhc, .css-1out211 {
+        background-color: #111111;
+    }
+    .css-1d391kg .stMarkdown, .css-1d391kg .stText, .css-1d391kg label {
         color: #FFFFFF;
     }
 
-    /* Widgets (selectbox, slider) fond sombre et bordure rouge */
+    /* Widgets (selectbox, multiselect, slider) : fond sombre, bordure rouge */
     .stSelectbox div[data-baseweb="select"] > div,
+    .stMultiSelect div[data-baseweb="select"] > div,
     .stSlider div[data-baseweb="slider"] {
         background-color: #1A1A1A;
         border: 1px solid #E63946;
+        color: #FFFFFF;
     }
 
     /* Boutons rouges */
-    .stButton > button {
+    .stButton > button, .stDownloadButton > button {
         background-color: #E63946;
         color: white;
         border: none;
     }
-    .stButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover {
         background-color: #C1121F;
     }
 
@@ -51,13 +61,8 @@ st.markdown("""
         color: #E63946;
     }
 
-    /* Sidebar également en noir */
-    .css-1d391kg {
-        background-color: #000000;
-    }
-
-    /* Tableaux et dataframes */
-    .stDataFrame {
+    /* Tableaux : bordures rouges */
+    .stDataFrame, .stTable {
         border: 1px solid #E63946;
     }
 </style>
@@ -204,7 +209,7 @@ def generate_dummy_data():
 # --------------------------------------------------------------------
 # 3. CHARGEMENT DES DONNÉES
 # --------------------------------------------------------------------
-st.title("📈 Outil de prévision des ventes (5 ans)")
+st.title("📊 Analyse des ventes par mois / par agence")
 
 data_option = st.radio(
     "Source des données :",
@@ -218,7 +223,11 @@ else:
     uploaded_file = st.file_uploader("Choisissez un fichier CSV", type="csv")
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-        # Assurez-vous que la colonne date est bien au format datetime
+        # Vérification des colonnes nécessaires
+        required_cols = ['date', 'agence', 'segment', 'marque', 'article', 'quantite']
+        if not all(col in df.columns for col in required_cols):
+            st.error(f"Le fichier CSV doit contenir les colonnes : {', '.join(required_cols)}")
+            st.stop()
         df['date'] = pd.to_datetime(df['date'])
         st.success("Fichier chargé avec succès.")
     else:
@@ -226,141 +235,123 @@ else:
         st.stop()
 
 # --------------------------------------------------------------------
-# 4. SÉLECTION PAR L'UTILISATEUR
+# 4. BARRE LATÉRALE : MODE D'AFFICHAGE ET FILTRES MULTIPLES
 # --------------------------------------------------------------------
-st.sidebar.header("Paramètres de sélection")
+st.sidebar.header("Paramètres d'affichage")
 
-# Agence
-selected_agence = st.sidebar.selectbox("Agence", AGENCES)
+# Choix du mode
+mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par Agence"])
 
-# Segment (filtré selon les données disponibles)
-segments_disponibles = df['segment'].unique()
-selected_segment = st.sidebar.selectbox("Segment", segments_disponibles)
+# Filtres multiples
+st.sidebar.subheader("Filtres (sélection multiple)")
 
-# Marque (filtrée selon le segment)
-marques_disponibles = df[df['segment'] == selected_segment]['marque'].unique()
-selected_marque = st.sidebar.selectbox("Marque", marques_disponibles)
+# Année (multiselect)
+annees_disponibles = sorted(df['date'].dt.year.unique())
+selected_annees = st.sidebar.multiselect(
+    "Année",
+    options=annees_disponibles,
+    default=annees_disponibles
+)
 
-# Article (filtré selon la marque)
-articles_disponibles = df[(df['segment'] == selected_segment) & (df['marque'] == selected_marque)]['article'].unique()
-selected_article = st.sidebar.selectbox("Article", articles_disponibles)
+# Segment (multiselect)
+segments_disponibles = sorted(df['segment'].unique())
+selected_segments = st.sidebar.multiselect(
+    "Segment",
+    options=segments_disponibles,
+    default=segments_disponibles
+)
+
+# Marque (multiselect) - filtrée selon les segments sélectionnés
+if selected_segments:
+    marques_disponibles = sorted(df[df['segment'].isin(selected_segments)]['marque'].unique())
+else:
+    marques_disponibles = sorted(df['marque'].unique())
+selected_marques = st.sidebar.multiselect(
+    "Marque",
+    options=marques_disponibles,
+    default=marques_disponibles
+)
+
+# Article (multiselect) - filtré selon segments et marques
+if selected_segments and selected_marques:
+    articles_disponibles = sorted(df[(df['segment'].isin(selected_segments)) & 
+                                     (df['marque'].isin(selected_marques))]['article'].unique())
+else:
+    articles_disponibles = sorted(df['article'].unique())
+selected_articles = st.sidebar.multiselect(
+    "Article",
+    options=articles_disponibles,
+    default=articles_disponibles
+)
 
 # --------------------------------------------------------------------
 # 5. FILTRAGE DES DONNÉES
 # --------------------------------------------------------------------
 df_filtered = df[
-    (df['agence'] == selected_agence) &
-    (df['segment'] == selected_segment) &
-    (df['marque'] == selected_marque) &
-    (df['article'] == selected_article)
-].sort_values('date')
+    (df['date'].dt.year.isin(selected_annees)) &
+    (df['segment'].isin(selected_segments)) &
+    (df['marque'].isin(selected_marques)) &
+    (df['article'].isin(selected_articles))
+]
 
 if df_filtered.empty:
-    st.warning("Aucune donnée pour cette combinaison. Veuillez choisir une autre sélection.")
+    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. PRÉPARATION POUR PROPHET
+# 6. CRÉATION DU TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
-df_prophet = df_filtered.rename(columns={'date': 'ds', 'quantite': 'y'})[['ds', 'y']]
-df_prophet = df_prophet.groupby('ds', as_index=False).sum()  # agréger par mois si nécessaire
-
-# --------------------------------------------------------------------
-# 7. PARAMÈTRES DE PRÉVISION
-# --------------------------------------------------------------------
-periods = st.sidebar.slider("Nombre de mois à prévoir", 12, 120, 60)
-seasonality_mode = st.sidebar.selectbox("Saisonnalité", ["additive", "multiplicative"])
-
-# --------------------------------------------------------------------
-# 8. MODÈLE PROPHET
-# --------------------------------------------------------------------
-try:
-    model = Prophet(
-        seasonality_mode=seasonality_mode,
-        yearly_seasonality=True,
-        weekly_seasonality=False,
-        daily_seasonality=False
+if mode_affichage == "Par mois":
+    # Extraire le mois (format 01, 02, ...)
+    df_filtered['mois'] = df_filtered['date'].dt.month.astype(str).str.zfill(2)
+    # Tableau croisé : index = hiérarchie segment > marque > article, colonnes = mois
+    pivot = pd.pivot_table(
+        df_filtered,
+        values='quantite',
+        index=['segment', 'marque', 'article'],
+        columns='mois',
+        aggfunc='sum',
+        fill_value=0,
+        margins=True,
+        margins_name='Total général'
     )
-    model.fit(df_prophet)
-    future = model.make_future_dataframe(periods=periods, freq='MS')
-    forecast = model.predict(future)
-except Exception as e:
-    st.error(f"Erreur lors de la modélisation : {e}")
-    st.stop()
+    # Réordonner les colonnes de 01 à 12 puis Total général
+    mois_cols = [f"{i:02d}" for i in range(1, 13)]
+    pivot = pivot.reindex(columns=mois_cols + ['Total général'], fill_value=0)
+    # Titre du tableau
+    st.subheader("Ventes par mois (toutes agences confondues)")
+else:  # Par Agence
+    pivot = pd.pivot_table(
+        df_filtered,
+        values='quantite',
+        index=['segment', 'marque', 'article'],
+        columns='agence',
+        aggfunc='sum',
+        fill_value=0,
+        margins=True,
+        margins_name='Total général'
+    )
+    # Titre du tableau
+    st.subheader("Ventes par agence (tous mois confondus)")
 
 # --------------------------------------------------------------------
-# 9. AFFICHAGE DES RÉSULTATS
+# 7. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
-st.subheader(f"Prévisions pour {selected_article} - {selected_agence}")
+# Réinitialiser l'index pour un affichage propre
+pivot_reset = pivot.reset_index()
+# Convertir les colonnes en chaînes pour éviter les problèmes d'affichage
+pivot_reset.columns = [str(col) for col in pivot_reset.columns]
 
-# Graphique interactif
-fig = go.Figure()
+# Afficher le tableau avec mise en forme
+st.dataframe(pivot_reset, use_container_width=True)
 
-# Historique
-fig.add_trace(go.Scatter(
-    x=df_prophet['ds'],
-    y=df_prophet['y'],
-    mode='lines+markers',
-    name='Historique',
-    line=dict(color='#E63946')  # rouge pour l'historique
-))
-
-# Prévision
-fig.add_trace(go.Scatter(
-    x=forecast['ds'],
-    y=forecast['yhat'],
-    mode='lines',
-    name='Prévision',
-    line=dict(color='#FFFFFF')  # blanc pour la prévision
-))
-
-# Intervalle de confiance
-fig.add_trace(go.Scatter(
-    x=forecast['ds'],
-    y=forecast['yhat_upper'],
-    mode='lines',
-    line=dict(width=0),
-    showlegend=False
-))
-fig.add_trace(go.Scatter(
-    x=forecast['ds'],
-    y=forecast['yhat_lower'],
-    mode='lines',
-    line=dict(width=0),
-    fill='tonexty',
-    fillcolor='rgba(230, 57, 70, 0.2)',  # rouge semi-transparent
-    name='Intervalle de confiance'
-))
-
-fig.update_layout(
-    title=f"Prévision sur {periods} mois",
-    xaxis_title="Date",
-    yaxis_title="Quantité",
-    hovermode="x unified",
-    paper_bgcolor='black',   # fond noir du graphique
-    plot_bgcolor='black',
-    font=dict(color='white')
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# Tableau des prévisions futures
-st.subheader("Détail des prévisions mensuelles")
-future_forecast = forecast[forecast['ds'] > df_prophet['ds'].max()][['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-future_forecast = future_forecast.rename(columns={
-    'ds': 'Date',
-    'yhat': 'Prévision',
-    'yhat_lower': 'Borne basse',
-    'yhat_upper': 'Borne haute'
-})
-future_forecast['Date'] = future_forecast['Date'].dt.strftime('%Y-%m')
-st.dataframe(future_forecast, use_container_width=True)
-
-# Téléchargement CSV
-csv = future_forecast.to_csv(index=False).encode('utf-8')
+# --------------------------------------------------------------------
+# 8. TÉLÉCHARGEMENT DU TABLEAU
+# --------------------------------------------------------------------
+csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
-    label="Télécharger les prévisions (CSV)",
+    label="Télécharger le tableau (CSV)",
     data=csv,
-    file_name=f"previsions_{selected_agence}_{selected_article}.csv",
+    file_name=f"ventes_{mode_affichage.lower().replace(' ', '_')}.csv",
     mime="text/csv"
 )
