@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import re
 from datetime import datetime
+from io import BytesIO
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -176,8 +177,108 @@ def nettoyer_reference(ref):
         return re.sub(r'^\d+\s*-\s*', '', ref)
     return ref
 
+def extraire_contenance_cl(contenances):
+    m = re.search(r'(\d+)\s*cl', str(contenances))
+    if m:
+        return int(m.group(1))
+    return None
+
 # --------------------------------------------------------------------
-# 3. CHARGEMENT DU FICHIER
+# 3. FONCTION DE CHARGEMENT ET NETTOYAGE (avec cache)
+# --------------------------------------------------------------------
+@st.cache_data
+def traiter_fichier(file_bytes, filename):
+    """Lit le fichier, nettoie et filtre les données, retourne un DataFrame prêt."""
+    if filename.endswith('.csv'):
+        df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
+    else:
+        df_raw = pd.read_excel(BytesIO(file_bytes))
+
+    # Vérifier colonnes requises
+    required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
+    if not all(col in df_raw.columns for col in required_cols):
+        raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
+
+    # Filtrer les lignes de détail : Référence non vide et ne contenant pas "Total"
+    df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
+
+    # Nettoyer la colonne Référence (supprimer préfixe)
+    df['Référence'] = df['Référence'].apply(nettoyer_reference)
+
+    # Filtrer pour ne garder que les articles actifs
+    df = df[df['Référence'].isin(df_active['article_actif'])]
+
+    # Convertir la colonne Année en numérique
+    df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
+    df = df.dropna(subset=['Année'])
+    df['Année'] = df['Année'].astype(int)
+
+    # Convertir la colonne "ventes hecto" en numérique
+    df['ventes_hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
+
+    # Créer la date
+    df['mois_num'] = df['Mois'].apply(parse_mois)
+    df = df[df['mois_num'].notna()]
+    df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
+
+    # Extraire la contenance en cl
+    df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
+
+    # Renommer les colonnes
+    df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
+
+    return df
+
+# --------------------------------------------------------------------
+# 4. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
+# --------------------------------------------------------------------
+@st.cache_data
+def calculer_previsions(df_hist, annees_prev):
+    """Calcule les prévisions pour les années données à partir de l'historique."""
+    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+    previsions = []
+
+    for keys, group in df_hist.groupby(group_cols):
+        serie = group.sort_values('date').set_index('date')['valeur']
+        if len(serie) < 12:
+            continue
+
+        dernier_mois = serie.index.max()
+        date_debut = dernier_mois - pd.DateOffset(years=3)
+        serie_recente = serie[serie.index >= date_debut]
+        if len(serie_recente) == 0:
+            continue
+
+        x = np.arange(len(serie_recente))
+        y = serie_recente.values
+        coeffs = np.polyfit(x, y, 1)
+        pente = coeffs[0]
+        derniere_valeur = serie_recente.iloc[-1]
+
+        segment_val, marque_val, format_val, contenances_val, ref_val, agence_val = keys
+
+        for annee in annees_prev:
+            for mois in range(1, 13):
+                date_prev = pd.Timestamp(year=annee, month=mois, day=1)
+                nb_mois = (date_prev.year - dernier_mois.year) * 12 + (date_prev.month - dernier_mois.month)
+                if nb_mois < 0:
+                    continue
+                prev_value = max(0, derniere_valeur + pente * nb_mois)
+                previsions.append({
+                    'date': date_prev,
+                    'segment': segment_val,
+                    'marque': marque_val,
+                    'format': format_val,
+                    'contenances': contenances_val,
+                    'Référence': ref_val,
+                    'agence': agence_val,
+                    'valeur': prev_value
+                })
+
+    return pd.DataFrame(previsions)
+
+# --------------------------------------------------------------------
+# 5. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📈 Analyse et Prévision des ventes")
 
@@ -187,61 +288,20 @@ if uploaded_file is None:
     st.info("Veuillez téléverser un fichier Excel (.xlsx) ou CSV contenant les colonnes : Année, Mois, segment, marque_1, format, Nom agence, contenances, Référence, ventes hecto.")
     st.stop()
 
+# Lire les bytes du fichier uploadé
+file_bytes = uploaded_file.getvalue()
+filename = uploaded_file.name
+
 try:
-    if uploaded_file.name.endswith('.csv'):
-        df_raw = pd.read_csv(uploaded_file, sep='\t')
-    else:
-        df_raw = pd.read_excel(uploaded_file)
+    df = traiter_fichier(file_bytes, filename)
 except Exception as e:
-    st.error(f"Erreur de lecture du fichier : {e}")
-    st.stop()
-
-required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
-if not all(col in df_raw.columns for col in required_cols):
-    st.error(f"Le fichier doit contenir les colonnes : {', '.join(required_cols)}")
+    st.error(f"Erreur lors du traitement du fichier : {e}")
     st.stop()
 
 # --------------------------------------------------------------------
-# 4. NETTOYAGE DES DONNÉES
+# 6. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
-# Filtrer les lignes de détail : Référence non vide et ne contenant pas "Total"
-df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
-
-# Nettoyer la colonne Référence (supprimer préfixe)
-df['Référence'] = df['Référence'].apply(nettoyer_reference)
-
-# Filtrer pour ne garder que les articles actifs
-df = df[df['Référence'].isin(df_active['article_actif'])]
-
-# Convertir la colonne Année en numérique
-df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
-df = df.dropna(subset=['Année'])
-df['Année'] = df['Année'].astype(int)
-
-# Convertir la colonne "ventes hecto" en numérique
-df['ventes_hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-
-# Créer la date
-df['mois_num'] = df['Mois'].apply(parse_mois)
-df = df[df['mois_num'].notna()]
-df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-
-# Extraire la contenance en cl
-def extraire_contenance_cl(contenances):
-    m = re.search(r'(\d+)\s*cl', str(contenances))
-    if m:
-        return int(m.group(1))
-    return None
-
-df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
-
-# Renommer les colonnes
-df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
-
-# --------------------------------------------------------------------
-# 5. CHOIX DE L'UNITÉ
-# --------------------------------------------------------------------
-unite = st.sidebar.radio("Unité d'affichage", ["Hectolitres (ventes hecto)", "Bouteilles (quantité)"])
+unite = st.sidebar.radio("Unité d'affichage", ["Hectolitres (ventes hecto)", "Bouteilles (ventes cols)"])
 
 if unite == "Hectolitres (ventes hecto)":
     df['valeur'] = df['ventes_hecto']
@@ -250,58 +310,15 @@ else:
     df['valeur'] = df['valeur'].round(0)
 
 # --------------------------------------------------------------------
-# 6. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# 7. GÉNÉRATION DES PRÉVISIONS (2027-2031)
 # --------------------------------------------------------------------
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
 
-group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
-
-previsions = []
-
-# Correction : utiliser keys pour récupérer les valeurs de groupement
-for keys, group in df_hist.groupby(group_cols):
-    serie = group.sort_values('date').set_index('date')['valeur']
-    if len(serie) < 12:
-        continue
-
-    dernier_mois = serie.index.max()
-    date_debut = dernier_mois - pd.DateOffset(years=3)
-    serie_recente = serie[serie.index >= date_debut]
-    if len(serie_recente) == 0:
-        continue
-
-    x = np.arange(len(serie_recente))
-    y = serie_recente.values
-    coeffs = np.polyfit(x, y, 1)
-    pente = coeffs[0]
-    derniere_valeur = serie_recente.iloc[-1]
-
-    # keys est un tuple (segment, marque, format, contenances, Référence, agence)
-    segment_val, marque_val, format_val, contenances_val, ref_val, agence_val = keys
-
-    for annee in annees_prev:
-        for mois in range(1, 13):
-            date_prev = pd.Timestamp(year=annee, month=mois, day=1)
-            nb_mois = (date_prev.year - dernier_mois.year) * 12 + (date_prev.month - dernier_mois.month)
-            if nb_mois < 0:
-                continue
-            prev_value = max(0, derniere_valeur + pente * nb_mois)
-            previsions.append({
-                'date': date_prev,
-                'segment': segment_val,
-                'marque': marque_val,
-                'format': format_val,
-                'contenances': contenances_val,
-                'Référence': ref_val,
-                'agence': agence_val,
-                'valeur': prev_value
-            })
-
-df_prev = pd.DataFrame(previsions)
+df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 7. FILTRES (prévisions uniquement)
+# 8. FILTRES (prévisions uniquement)
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
@@ -342,7 +359,7 @@ if mode_affichage == "Par mois":
     df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 8. TABLEAU CROISÉ DYNAMIQUE
+# 9. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
@@ -394,7 +411,7 @@ else:
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 9. AFFICHAGE DU TABLEAU
+# 10. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
@@ -409,7 +426,7 @@ else:
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 10. TÉLÉCHARGEMENT
+# 11. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
