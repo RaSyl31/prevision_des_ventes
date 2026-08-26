@@ -9,37 +9,28 @@ from io import StringIO
 # --------------------------------------------------------------------
 # Configuration de la page
 # --------------------------------------------------------------------
-st.set_page_config(page_title="Analyse des ventes", layout="wide")
+st.set_page_config(page_title="Analyse et Prévision des ventes", layout="wide")
 
 # --------------------------------------------------------------------
-# CSS personnalisé : fond gris clair, texte noir, tableau plus grand
+# CSS personnalisé : fond gris clair, texte noir, tableau agrandi
 # --------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Fond principal gris clair */
     .stApp {
         background-color: #F0F2F6;
     }
-
-    /* Texte principal noir */
     .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable, label {
         color: #000000;
     }
-
-    /* Titres en noir */
     h1, h2, h3, h4, h5, h6 {
         color: #000000;
     }
-
-    /* Sidebar : fond gris clair, texte noir */
     .css-1d391kg, .css-1lcbmhc, .css-1out211 {
         background-color: #E0E2E6;
     }
     .css-1d391kg .stMarkdown, .css-1d391kg .stText, .css-1d391kg label {
         color: #000000;
     }
-
-    /* Widgets : fond blanc, bordure grise, texte noir */
     .stSelectbox div[data-baseweb="select"] > div,
     .stMultiSelect div[data-baseweb="select"] > div,
     .stSlider div[data-baseweb="slider"] {
@@ -47,8 +38,6 @@ st.markdown("""
         border: 1px solid #CCCCCC;
         color: #000000;
     }
-
-    /* Boutons */
     .stButton > button, .stDownloadButton > button {
         background-color: #4CAF50;
         color: white;
@@ -57,18 +46,13 @@ st.markdown("""
     .stButton > button:hover, .stDownloadButton > button:hover {
         background-color: #45a049;
     }
-
-    /* Liens */
     a {
         color: #0000EE;
     }
-
-    /* Tableaux : agrandir la zone d'affichage */
     .stDataFrame {
         width: 100%;
         border: 1px solid #CCCCCC;
     }
-    /* Augmenter la hauteur de la zone de dataframe */
     div[data-testid="stDataFrame"] {
         height: 700px !important;
     }
@@ -297,7 +281,7 @@ def generate_dummy_data():
 # --------------------------------------------------------------------
 # 3. CHARGEMENT DES DONNÉES
 # --------------------------------------------------------------------
-st.title("📊 Analyse des ventes (historique 2017 - aujourd'hui)")
+st.title("📈 Analyse et Prévision des ventes")
 
 data_option = st.radio(
     "Source des données :",
@@ -312,7 +296,6 @@ else:
     if uploaded_file is not None:
         try:
             df_ventes = pd.read_csv(uploaded_file)
-            # Vérifier les colonnes minimales : date, agence, reference, quantite
             required_cols = ['date', 'agence', 'reference', 'quantite']
             if not all(col in df_ventes.columns for col in required_cols):
                 st.error(f"Le fichier CSV doit contenir les colonnes : {', '.join(required_cols)}")
@@ -341,79 +324,81 @@ else:
     df_ventes['valeur'] = df_ventes['quantite']
 
 # --------------------------------------------------------------------
-# 5. FILTRES (dans la barre latérale)
+# 5. FILTRES EN CASCADE (SELECTBOX UNIQUES)
 # --------------------------------------------------------------------
-st.sidebar.header("Filtres")
+st.sidebar.header("Filtres (sélection unique)")
 
 # Mode d'affichage
 mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence"])
 
-# Année (multiselect)
-annees_disponibles = sorted(df_ventes['date'].dt.year.unique())
-selected_annees = st.sidebar.multiselect("Année", annees_disponibles, default=annees_disponibles)
+# Année : 10 dernières années à partir de la dernière année des données
+max_year = df_ventes['date'].dt.year.max()
+min_year = max_year - 9
+# Options d'années : intersection entre les années disponibles et la plage des 10 ans
+years_in_data = sorted(df_ventes['date'].dt.year.unique())
+annees_options = [y for y in range(min_year, max_year+1) if y in years_in_data]
+if not annees_options:  # fallback si aucune année dans la plage
+    annees_options = years_in_data
 
-# Segment
-segments_disponibles = sorted(df_ventes['segment'].dropna().unique())
-selected_segments = st.sidebar.multiselect("Segment", segments_disponibles, default=segments_disponibles)
+selected_annee = st.sidebar.selectbox("Année", options=annees_options)
+
+# Filtrer par année
+df_temp = df_ventes[df_ventes['date'].dt.year == selected_annee]
+
+# Segment (options basées sur l'année sélectionnée)
+segments_options = sorted(df_temp['segment'].dropna().unique())
+if not segments_options:
+    st.warning("Aucune donnée pour l'année sélectionnée.")
+    st.stop()
+selected_segment = st.sidebar.selectbox("Segment", options=segments_options)
+df_temp = df_temp[df_temp['segment'] == selected_segment]
 
 # Marque
-if selected_segments:
-    marques_disponibles = sorted(df_ventes[df_ventes['segment'].isin(selected_segments)]['marque_1'].dropna().unique())
-else:
-    marques_disponibles = sorted(df_ventes['marque_1'].dropna().unique())
-selected_marques = st.sidebar.multiselect("Marque", marques_disponibles, default=marques_disponibles)
+marques_options = sorted(df_temp['marque_1'].dropna().unique())
+if not marques_options:
+    st.warning("Aucune marque disponible pour cette sélection.")
+    st.stop()
+selected_marque = st.sidebar.selectbox("Marque", options=marques_options)
+df_temp = df_temp[df_temp['marque_1'] == selected_marque]
 
 # Format
-if selected_segments and selected_marques:
-    formats_disponibles = sorted(df_ventes[(df_ventes['segment'].isin(selected_segments)) & 
-                                           (df_ventes['marque_1'].isin(selected_marques))]['format'].dropna().unique())
-else:
-    formats_disponibles = sorted(df_ventes['format'].dropna().unique())
-selected_formats = st.sidebar.multiselect("Format", formats_disponibles, default=formats_disponibles)
+formats_options = sorted(df_temp['format'].dropna().unique())
+if not formats_options:
+    st.warning("Aucun format disponible.")
+    st.stop()
+selected_format = st.sidebar.selectbox("Format", options=formats_options)
+df_temp = df_temp[df_temp['format'] == selected_format]
 
 # Contenance
-if selected_segments and selected_marques and selected_formats:
-    contenances_disponibles = sorted(df_ventes[(df_ventes['segment'].isin(selected_segments)) & 
-                                               (df_ventes['marque_1'].isin(selected_marques)) & 
-                                               (df_ventes['format'].isin(selected_formats))]['contenances'].dropna().unique())
-else:
-    contenances_disponibles = sorted(df_ventes['contenances'].dropna().unique())
-selected_contenances = st.sidebar.multiselect("Contenance", contenances_disponibles, default=contenances_disponibles)
-
-# Agence (seulement si mode "Par mois", pour filtrer)
-if mode_affichage == "Par mois":
-    agences_disponibles = sorted(df_ventes['agence'].unique())
-    selected_agences = st.sidebar.multiselect("Agence", agences_disponibles, default=agences_disponibles)
-else:
-    selected_agences = sorted(df_ventes['agence'].unique())  # toutes, car on affiche par agence
-
-# --------------------------------------------------------------------
-# 6. FILTRAGE DES DONNÉES
-# --------------------------------------------------------------------
-df_filtered = df_ventes[
-    (df_ventes['date'].dt.year.isin(selected_annees)) &
-    (df_ventes['segment'].isin(selected_segments)) &
-    (df_ventes['marque_1'].isin(selected_marques)) &
-    (df_ventes['format'].isin(selected_formats)) &
-    (df_ventes['contenances'].isin(selected_contenances)) &
-    (df_ventes['agence'].isin(selected_agences))
-]
-
-if df_filtered.empty:
-    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
+contenances_options = sorted(df_temp['contenances'].dropna().unique())
+if not contenances_options:
+    st.warning("Aucune contenance disponible.")
     st.stop()
+selected_contenance = st.sidebar.selectbox("Contenance", options=contenances_options)
+df_temp = df_temp[df_temp['contenances'] == selected_contenance]
+
+# Agence (uniquement si mode "Par mois")
+if mode_affichage == "Par mois":
+    agences_options = sorted(df_temp['agence'].unique())
+    if not agences_options:
+        st.warning("Aucune agence disponible.")
+        st.stop()
+    selected_agence = st.sidebar.selectbox("Agence", options=agences_options)
+    df_temp = df_temp[df_temp['agence'] == selected_agence]
+else:
+    # En mode "Par agence", on garde toutes les agences pour le pivot
+    pass
 
 # --------------------------------------------------------------------
-# 7. CRÉATION DU TABLEAU CROISÉ DYNAMIQUE
+# 6. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
-# Index hiérarchique : segment > marque_1 > format > contenances > référence
 index_cols = ['segment', 'marque_1', 'format', 'contenances', 'Référence']
 
 if mode_affichage == "Par mois":
     # Créer une colonne mois
-    df_filtered['mois'] = df_filtered['date'].dt.month.astype(str).str.zfill(2)
+    df_temp['mois'] = df_temp['date'].dt.month.astype(str).str.zfill(2)
     pivot = pd.pivot_table(
-        df_filtered,
+        df_temp,
         values='valeur',
         index=index_cols,
         columns='mois',
@@ -422,13 +407,12 @@ if mode_affichage == "Par mois":
         margins=True,
         margins_name='Total général'
     )
-    # Réordonner les colonnes de 01 à 12 puis Total général
     mois_cols = [f"{i:02d}" for i in range(1, 13)]
     pivot = pivot.reindex(columns=mois_cols + ['Total général'], fill_value=0)
-    st.subheader("Ventes par mois (toutes agences sélectionnées)")
+    st.subheader(f"Ventes par mois - {selected_agence} ({selected_annee})")
 else:  # Par agence
     pivot = pd.pivot_table(
-        df_filtered,
+        df_temp,
         values='valeur',
         index=index_cols,
         columns='agence',
@@ -437,15 +421,15 @@ else:  # Par agence
         margins=True,
         margins_name='Total général'
     )
-    st.subheader("Ventes par agence")
+    st.subheader(f"Ventes par agence - {selected_annee}")
 
 # --------------------------------------------------------------------
-# 8. AFFICHAGE DU TABLEAU
+# 7. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
 
-# Arrondir les valeurs si volume en hectolitres (pour lisibilité)
+# Arrondir les valeurs si volume
 if unite == "Volume (hectolitres)":
     for col in pivot_reset.columns[1:]:
         pivot_reset[col] = pivot_reset[col].round(2)
@@ -453,7 +437,7 @@ if unite == "Volume (hectolitres)":
 st.dataframe(pivot_reset, use_container_width=True, height=700)
 
 # --------------------------------------------------------------------
-# 9. TÉLÉCHARGEMENT
+# 8. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
