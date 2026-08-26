@@ -250,6 +250,7 @@ def traiter_fichier(file_bytes, filename):
             format_manquant = extraire_format(article_manquant)
             contenance_manquant = extraire_contenance_cl(article_manquant)
 
+            # Chercher un article similaire
             candidats = df_presents[
                 (df_presents['marque'] == marque_manquant) &
                 (df_presents['format'] == format_manquant)
@@ -277,10 +278,13 @@ def traiter_fichier(file_bytes, filename):
                     lignes_similaires['contenances'] = info_manquant.get('contenances', '')
                     lignes_similaires['contenance_cl'] = contenance_manquant
                     df = pd.concat([df, lignes_similaires], ignore_index=True)
-            # Si aucun candidat, on ne fait rien ; l'article sera ajouté avec valeur nulle plus tard
-    # Fin de la gestion des articles manquants
 
-    return df  # On ne filtre PAS sur les articles actifs ici
+    # --------------------------------------------------------------------
+    # FILTRAGE FINAL : ne garder que les articles actifs
+    # --------------------------------------------------------------------
+    df = df[df['Référence'].isin(df_active['article_actif'])]
+
+    return df
 
 # --------------------------------------------------------------------
 # 4. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
@@ -372,11 +376,7 @@ df_prev = calculer_previsions(df_hist, annees_prev)
 # --------------------------------------------------------------------
 # 8. ASSURER QUE TOUS LES ARTICLES ACTIFS SONT PRÉSENTS
 # --------------------------------------------------------------------
-# Créer une liste complète des combinaisons article-agence pour les prévisions
-# On récupère les agences présentes dans les prévisions ou dans les données historiques
-agences_disponibles = sorted(df_hist['agence'].unique())
-# Pour chaque article actif, on s'assure qu'il existe des prévisions pour chaque agence et chaque mois
-# En l'absence de prévisions, la valeur sera 0
+agences_disponibles = sorted(df_hist['agence'].unique()) if not df_hist.empty else []
 nouvelles_lignes = []
 for _, row_active in df_active.iterrows():
     seg = row_active['segment_actif']
@@ -384,9 +384,7 @@ for _, row_active in df_active.iterrows():
     article = row_active['article_actif']
     format_art = extraire_format(article)
     contenance = extraire_contenance_cl(article)
-    # Si l'article n'existe pas déjà dans df_prev, on crée des lignes avec 0
     for agence in agences_disponibles:
-        # Vérifier si cette combinaison existe déjà dans df_prev
         masque = (
             (df_prev['segment'] == seg) &
             (df_prev['marque'] == marque) &
@@ -394,7 +392,6 @@ for _, row_active in df_active.iterrows():
             (df_prev['agence'] == agence)
         )
         if not masque.any():
-            # Ajouter des lignes 0 pour chaque mois de chaque année de prévision
             for annee in annees_prev:
                 for mois in range(1, 13):
                     nouvelles_lignes.append({
@@ -402,7 +399,7 @@ for _, row_active in df_active.iterrows():
                         'segment': seg,
                         'marque': marque,
                         'format': format_art,
-                        'contenances': '',  # on peut laisser vide
+                        'contenances': '',
                         'Référence': article,
                         'agence': agence,
                         'valeur': 0.0
