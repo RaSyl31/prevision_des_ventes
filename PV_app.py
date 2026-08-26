@@ -150,9 +150,8 @@ ACTIVE_ARTICLES = [
 df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_actif", "article_actif"])
 
 # --------------------------------------------------------------------
-# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
+# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (complète)
 # --------------------------------------------------------------------
-# (Insérer ici le dictionnaire complet fourni précédemment)
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
     "102-THB Pilsener 33 cl VER": "THB Pilsener 33 cl VER",
@@ -410,7 +409,7 @@ def extraire_format(article_str):
     return None
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CHARGEMENT ET NETTOYAGE AVEC SIMILARITÉ AMÉLIORÉE
+# 5. FONCTION DE CHARGEMENT ET NETTOYAGE
 # --------------------------------------------------------------------
 @st.cache_data
 def traiter_fichier(file_bytes, filename):
@@ -423,10 +422,7 @@ def traiter_fichier(file_bytes, filename):
     if not all(col in df_raw.columns for col in required_cols):
         raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
 
-    # Filtrer les lignes de détail
     df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
-
-    # Mapper la référence vers l'article standardisé
     df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
 
     df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
@@ -444,14 +440,13 @@ def traiter_fichier(file_bytes, filename):
     df = df[df['Référence'].isin(df_active['article_actif'])]
 
     # --------------------------------------------------------------------
-    # Gestion des articles actifs manquants (similarité améliorée)
+    # Gestion des articles actifs manquants (similarité)
     # --------------------------------------------------------------------
     articles_presents = set(df['Référence'].unique())
     articles_actifs_set = set(df_active['article_actif'])
     articles_manquants = articles_actifs_set - articles_presents
 
     if articles_manquants:
-        # DataFrame des articles présents avec leurs caractéristiques
         df_presents = df[['Référence', 'segment', 'marque', 'format', 'contenance_cl']].drop_duplicates()
         for article_manquant in articles_manquants:
             info_manquant = df_active[df_active['article_actif'] == article_manquant].iloc[0]
@@ -460,28 +455,22 @@ def traiter_fichier(file_bytes, filename):
             format_manquant = extraire_format(article_manquant)
             contenance_manquant = extraire_contenance_cl(article_manquant)
 
-            # Recherche de candidats par priorité décroissante
-            candidats = pd.DataFrame()
-            # 1. Même marque, même format
+            # Recherche de candidats par priorité
             candidats = df_presents[
                 (df_presents['marque'] == marque_manquant) &
                 (df_presents['format'] == format_manquant)
             ]
-            # 2. Même marque, tous formats
             if candidats.empty:
                 candidats = df_presents[df_presents['marque'] == marque_manquant]
-            # 3. Même segment, même format
             if candidats.empty:
                 candidats = df_presents[
                     (df_presents['segment'] == seg_manquant) &
                     (df_presents['format'] == format_manquant)
                 ]
-            # 4. Même segment, tous formats
             if candidats.empty:
                 candidats = df_presents[df_presents['segment'] == seg_manquant]
 
             if not candidats.empty:
-                # Choisir le candidat avec la contenance la plus proche
                 candidats = candidats.copy()
                 candidats['diff_contenance'] = (candidats['contenance_cl'] - contenance_manquant).abs()
                 meilleur = candidats.sort_values('diff_contenance').iloc[0]
@@ -516,7 +505,6 @@ def calculer_previsions(df_hist, annees_prev):
         date_debut = dernier_mois - pd.DateOffset(years=3)
         serie_recente = serie[serie.index >= date_debut]
         if len(serie_recente) == 0:
-            # Utiliser la série complète si moins de 3 ans
             serie_recente = serie
 
         # Si moins de 12 points, on utilise la moyenne comme prévision constante
@@ -524,7 +512,6 @@ def calculer_previsions(df_hist, annees_prev):
             pente = 0
             derniere_valeur = serie_recente.mean() if len(serie_recente) > 0 else 0
         else:
-            # Régression linéaire
             x = np.arange(len(serie_recente))
             y = serie_recente.values
             coeffs = np.polyfit(x, y, 1)
@@ -593,23 +580,22 @@ annees_prev = [2027, 2028, 2029, 2030, 2031]
 df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 10. AJOUT DE ZÉROS EN DERNIER RECOURS (uniquement si toujours manquant)
+# 10. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
 # --------------------------------------------------------------------
-nouvelles_lignes = []
-for _, row_active in df_active.iterrows():
-    seg = row_active['segment_actif']
-    marque = row_active['marque_actif']
-    article = row_active['article_actif']
-    format_art = extraire_format(article)
-    contenance = extraire_contenance_cl(article)
-    for agence in AGENCES:
-        masque = (
-            (df_prev['segment'] == seg) &
-            (df_prev['marque'] == marque) &
-            (df_prev['Référence'] == article) &
-            (df_prev['agence'] == agence)
-        )
-        if not masque.any():
+# (Optionnel) Si un article actif n'est toujours pas dans df_prev, on utilise la moyenne de tout l'historique
+# pour éviter les zéros. Ici, on ne le fait que si nécessaire.
+moyenne_globale = df_hist['valeur'].mean() if not df_hist.empty else 0
+articles_prev = set(df_prev['Référence'].unique())
+articles_manquants = set(df_active['article_actif']) - articles_prev
+if articles_manquants:
+    nouvelles_lignes = []
+    for article in articles_manquants:
+        info = df_active[df_active['article_actif'] == article].iloc[0]
+        seg = info['segment_actif']
+        marque = info['marque_actif']
+        format_art = extraire_format(article)
+        contenance = extraire_contenance_cl(article)
+        for agence in AGENCES:
             for annee in annees_prev:
                 for mois in range(1, 13):
                     nouvelles_lignes.append({
@@ -617,14 +603,13 @@ for _, row_active in df_active.iterrows():
                         'segment': seg,
                         'marque': marque,
                         'format': format_art,
-                        'contenances': '',  # ou on peut calculer la contenance réelle
+                        'contenances': '',
                         'Référence': article,
                         'agence': agence,
-                        'valeur': 0.0
+                        'valeur': moyenne_globale
                     })
-
-if nouvelles_lignes:
-    df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
+    if nouvelles_lignes:
+        df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
 
 # --------------------------------------------------------------------
 # 11. FILTRES
