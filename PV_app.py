@@ -235,23 +235,19 @@ segment	marque_1	format	contenances	Référence
 
 # Parser le tableau produits
 df_products = pd.read_csv(StringIO(PRODUCT_TABLE), sep='\t')
-# Filtrer les lignes dont la colonne "Référence" est vide ou contient "Total"
 df_products = df_products[df_products['Référence'].notna() & ~df_products['Référence'].str.contains('Total', na=False)]
-# Extraire la contenance numérique (ex: "50 cl" -> 50)
+
 def extraire_contenance(contenances):
     m = re.search(r'(\d+)\s*cl', contenances)
-    if m:
-        return int(m.group(1))
-    return None
+    return int(m.group(1)) if m else None
 
 df_products['contenance_cl'] = df_products['contenances'].apply(extraire_contenance)
 
 # --------------------------------------------------------------------
-# 2. GÉNÉRATION DE DONNÉES FICTIVES (pour test)
+# 2. GÉNÉRATION DE DONNÉES FICTIVES
 # --------------------------------------------------------------------
 @st.cache_data
 def generate_dummy_data():
-    """Génère des données mensuelles de 2017 à août 2026 pour toutes les références et agences."""
     start_date = datetime(2017, 1, 1)
     end_date = datetime(2026, 8, 1)
     dates = pd.date_range(start=start_date, end=end_date, freq='MS')
@@ -309,93 +305,78 @@ else:
         st.info("Veuillez téléverser un fichier CSV avec les colonnes : date, agence, reference, quantite.")
         st.stop()
 
-# Fusionner avec le tableau produits pour obtenir segment, marque, format, contenance
+# Fusionner avec le tableau produits
 df_ventes = df_ventes.merge(df_products, left_on='reference', right_on='Référence', how='left')
 
 # --------------------------------------------------------------------
 # 4. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
 unite = st.sidebar.radio("Unité d'affichage", ["Quantité (bouteilles)", "Volume (hectolitres)"])
-
-# Si volume, calculer le volume en hectolitres
-if unite == "Volume (hectolitres)":
-    df_ventes['valeur'] = df_ventes['quantite'] * df_ventes['contenance_cl'] / 10000.0
-else:
-    df_ventes['valeur'] = df_ventes['quantite']
+df_ventes['valeur'] = df_ventes['quantite'] if unite == "Quantité (bouteilles)" else df_ventes['quantite'] * df_ventes['contenance_cl'] / 10000.0
 
 # --------------------------------------------------------------------
-# 5. FILTRES EN CASCADE (SELECTBOX UNIQUES)
+# 5. FILTRES MULTIPLES (cases à cocher)
 # --------------------------------------------------------------------
-st.sidebar.header("Filtres (sélection unique)")
+st.sidebar.header("Filtres (sélection multiple)")
 
-# Mode d'affichage
 mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence"])
 
-# Année : 10 dernières années à partir de la dernière année des données
-max_year = df_ventes['date'].dt.year.max()
-min_year = max_year - 9
-# Options d'années : intersection entre les années disponibles et la plage des 10 ans
-years_in_data = sorted(df_ventes['date'].dt.year.unique())
-annees_options = [y for y in range(min_year, max_year+1) if y in years_in_data]
-if not annees_options:  # fallback si aucune année dans la plage
-    annees_options = years_in_data
+# Années : de 2017 à 2031
+annees_options = list(range(2017, 2032))
+# Ne garder que les années présentes dans les données (pour éviter des sélections vides)
+annees_disponibles = sorted(df_ventes['date'].dt.year.unique())
+annees_options = [y for y in annees_options if y in annees_disponibles]
+# Ajouter 2031 même si pas de données (pour prévisions futures)
+if 2031 not in annees_options:
+    annees_options.append(2031)
+# S'assurer que les options sont triées
+annees_options = sorted(set(annees_options))
+selected_annees = st.sidebar.multiselect("Année", options=annees_options, default=annees_options)
 
-selected_annee = st.sidebar.selectbox("Année", options=annees_options)
+# Filtrer par années
+df_temp = df_ventes[df_ventes['date'].dt.year.isin(selected_annees)]
 
-# Filtrer par année
-df_temp = df_ventes[df_ventes['date'].dt.year == selected_annee]
-
-# Segment (options basées sur l'année sélectionnée)
+# Segment
 segments_options = sorted(df_temp['segment'].dropna().unique())
-if not segments_options:
-    st.warning("Aucune donnée pour l'année sélectionnée.")
-    st.stop()
-selected_segment = st.sidebar.selectbox("Segment", options=segments_options)
-df_temp = df_temp[df_temp['segment'] == selected_segment]
+selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
+df_temp = df_temp[df_temp['segment'].isin(selected_segments)]
 
-# Marque
+# Marque (basé sur les segments sélectionnés)
 marques_options = sorted(df_temp['marque_1'].dropna().unique())
-if not marques_options:
-    st.warning("Aucune marque disponible pour cette sélection.")
-    st.stop()
-selected_marque = st.sidebar.selectbox("Marque", options=marques_options)
-df_temp = df_temp[df_temp['marque_1'] == selected_marque]
+selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
+df_temp = df_temp[df_temp['marque_1'].isin(selected_marques)]
 
 # Format
 formats_options = sorted(df_temp['format'].dropna().unique())
-if not formats_options:
-    st.warning("Aucun format disponible.")
-    st.stop()
-selected_format = st.sidebar.selectbox("Format", options=formats_options)
-df_temp = df_temp[df_temp['format'] == selected_format]
+selected_formats = st.sidebar.multiselect("Format", options=formats_options, default=formats_options)
+df_temp = df_temp[df_temp['format'].isin(selected_formats)]
 
 # Contenance
 contenances_options = sorted(df_temp['contenances'].dropna().unique())
-if not contenances_options:
-    st.warning("Aucune contenance disponible.")
-    st.stop()
-selected_contenance = st.sidebar.selectbox("Contenance", options=contenances_options)
-df_temp = df_temp[df_temp['contenances'] == selected_contenance]
+selected_contenances = st.sidebar.multiselect("Contenance", options=contenances_options, default=contenances_options)
+df_temp = df_temp[df_temp['contenances'].isin(selected_contenances)]
 
-# Agence (uniquement si mode "Par mois")
+# Agence (si mode "Par mois", on propose les agences ; en mode "Par agence", toutes les agences sont conservées)
 if mode_affichage == "Par mois":
     agences_options = sorted(df_temp['agence'].unique())
-    if not agences_options:
-        st.warning("Aucune agence disponible.")
-        st.stop()
-    selected_agence = st.sidebar.selectbox("Agence", options=agences_options)
-    df_temp = df_temp[df_temp['agence'] == selected_agence]
+    selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
+    df_temp = df_temp[df_temp['agence'].isin(selected_agences)]
 else:
     # En mode "Par agence", on garde toutes les agences pour le pivot
-    pass
+    selected_agences = sorted(df_temp['agence'].unique())  # pas de filtre additionnel
+    # Pas de sélection d'agence dans la sidebar (elles apparaîtront en colonnes)
+    st.sidebar.info("Agences affichées en colonnes")
 
 # --------------------------------------------------------------------
 # 6. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque_1', 'format', 'contenances', 'Référence']
 
+if df_temp.empty:
+    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
+    st.stop()
+
 if mode_affichage == "Par mois":
-    # Créer une colonne mois
     df_temp['mois'] = df_temp['date'].dt.month.astype(str).str.zfill(2)
     pivot = pd.pivot_table(
         df_temp,
@@ -409,8 +390,8 @@ if mode_affichage == "Par mois":
     )
     mois_cols = [f"{i:02d}" for i in range(1, 13)]
     pivot = pivot.reindex(columns=mois_cols + ['Total général'], fill_value=0)
-    st.subheader(f"Ventes par mois - {selected_agence} ({selected_annee})")
-else:  # Par agence
+    st.subheader(f"Ventes par mois - Années sélectionnées : {', '.join(map(str, selected_annees))}")
+else:
     pivot = pd.pivot_table(
         df_temp,
         values='valeur',
@@ -421,7 +402,7 @@ else:  # Par agence
         margins=True,
         margins_name='Total général'
     )
-    st.subheader(f"Ventes par agence - {selected_annee}")
+    st.subheader(f"Ventes par agence - Années sélectionnées : {', '.join(map(str, selected_annees))}")
 
 # --------------------------------------------------------------------
 # 7. AFFICHAGE DU TABLEAU
@@ -429,7 +410,6 @@ else:  # Par agence
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
 
-# Arrondir les valeurs si volume
 if unite == "Volume (hectolitres)":
     for col in pivot_reset.columns[1:]:
         pivot_reset[col] = pivot_reset[col].round(2)
