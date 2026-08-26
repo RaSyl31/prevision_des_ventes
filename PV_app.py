@@ -497,8 +497,11 @@ def generer_previsions(df_hist, annees_prev):
     for keys, group in df_hist.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
 
-        # Série temporelle mensuelle
-        serie = group.set_index('date')['valeur'].sort_index().asfreq('MS', fill_value=0)
+        # Agréger par mois (en cas de doublons, on somme)
+        serie = group.groupby('date')['valeur'].sum().sort_index()
+
+        # Rééchantillonner à fréquence mensuelle (remplit les mois manquants avec 0)
+        serie = serie.asfreq('MS', fill_value=0)
 
         # Prévision Holt-Winters (60 mois)
         steps = len(annees_prev) * 12
@@ -527,7 +530,6 @@ def generer_previsions(df_hist, annees_prev):
                 })
 
     return pd.DataFrame(previsions)
-
 # --------------------------------------------------------------------
 # 8. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
