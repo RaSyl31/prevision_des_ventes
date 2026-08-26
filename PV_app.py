@@ -150,8 +150,10 @@ ACTIVE_ARTICLES = [
 df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_actif", "article_actif"])
 
 # --------------------------------------------------------------------
-# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (fournie par l'utilisateur)
+# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
 # --------------------------------------------------------------------
+# (Insérez ici le dictionnaire REFERENCE_TO_ARTICLE complet fourni par l'utilisateur)
+# (Pour des raisons de longueur, je le remets en entier ci-dessous)
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
     "102-THB Pilsener 33 cl VER": "THB Pilsener 33 cl VER",
@@ -362,7 +364,17 @@ REFERENCE_TO_ARTICLE = {
 }
 
 # --------------------------------------------------------------------
-# 3. FONCTIONS UTILITAIRES
+# 3. LISTE DES AGENCES (par défaut)
+# --------------------------------------------------------------------
+AGENCES = [
+    "00-Siège", "01-Tanjombato", "03-Usine-Diego", "04-Tulear",
+    "05-Fianarantsoa", "06-Ihosy", "07-Majunga", "08-Manakara",
+    "09-Tamatave", "11-Andranomahery", "12-Antsirabe", "18-Ambanja",
+    "19-Sambava", "21-Nosy-Be", "23-Morondava", "24-Fort-Dauphin"
+]
+
+# --------------------------------------------------------------------
+# 4. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
 MOIS_FR = {
     'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4, 'mai': 5, 'juin': 6,
@@ -401,11 +413,10 @@ def extraire_format(article_str):
     return None
 
 # --------------------------------------------------------------------
-# 4. FONCTION DE CHARGEMENT ET NETTOYAGE (avec cache)
+# 5. FONCTION DE CHARGEMENT ET NETTOYAGE (avec cache)
 # --------------------------------------------------------------------
 @st.cache_data
 def traiter_fichier(file_bytes, filename):
-    """Lit le fichier, mappe les références vers les articles actifs, nettoie et retourne un DataFrame prêt."""
     if filename.endswith('.csv'):
         df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
     else:
@@ -415,29 +426,20 @@ def traiter_fichier(file_bytes, filename):
     if not all(col in df_raw.columns for col in required_cols):
         raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
 
-    # Filtrer les lignes de détail : Référence non vide et ne contenant pas "Total"
     df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
 
     # Mapper la référence vers l'article standardisé
     df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
 
-    # Convertir la colonne Année en numérique
     df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
 
-    # Convertir la colonne "ventes hecto" en numérique
     df['ventes_hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-
-    # Créer la date
     df['mois_num'] = df['Mois'].apply(parse_mois)
     df = df[df['mois_num'].notna()]
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-
-    # Extraire la contenance en cl à partir de la colonne 'contenances'
     df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
-
-    # Renommer les colonnes
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
     # Filtrer pour ne garder que les articles actifs
@@ -446,11 +448,10 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
+# 6. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
 # --------------------------------------------------------------------
 @st.cache_data
 def calculer_previsions(df_hist, annees_prev):
-    """Calcule les prévisions pour les années données à partir de l'historique."""
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     previsions = []
 
@@ -494,7 +495,7 @@ def calculer_previsions(df_hist, annees_prev):
     return pd.DataFrame(previsions)
 
 # --------------------------------------------------------------------
-# 6. CHARGEMENT DU FICHIER
+# 7. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📈 Analyse et Prévision des ventes")
 
@@ -514,7 +515,7 @@ except Exception as e:
     st.stop()
 
 # --------------------------------------------------------------------
-# 7. CHOIX DE L'UNITÉ
+# 8. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
 unite = st.sidebar.radio("Unité d'affichage", ["Hectolitres (ventes hecto)", "Bouteilles (ventes cols)"])
 
@@ -525,7 +526,7 @@ else:
     df['valeur'] = df['valeur'].round(0)
 
 # --------------------------------------------------------------------
-# 8. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# 9. GÉNÉRATION DES PRÉVISIONS (2027-2031)
 # --------------------------------------------------------------------
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
@@ -533,9 +534,8 @@ annees_prev = [2027, 2028, 2029, 2030, 2031]
 df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 9. ASSURER QUE TOUS LES ARTICLES ACTIFS SONT PRÉSENTS (ZÉROS SI ABSENTS)
+# 10. ASSURER QUE TOUS LES ARTICLES ACTIFS APPARAISSENT AVEC ZÉROS
 # --------------------------------------------------------------------
-agences_disponibles = sorted(df_hist['agence'].unique()) if not df_hist.empty else []
 nouvelles_lignes = []
 for _, row_active in df_active.iterrows():
     seg = row_active['segment_actif']
@@ -543,7 +543,7 @@ for _, row_active in df_active.iterrows():
     article = row_active['article_actif']
     format_art = extraire_format(article)
     contenance = extraire_contenance_cl(article)
-    for agence in agences_disponibles:
+    for agence in AGENCES:
         masque = (
             (df_prev['segment'] == seg) &
             (df_prev['marque'] == marque) &
@@ -558,7 +558,7 @@ for _, row_active in df_active.iterrows():
                         'segment': seg,
                         'marque': marque,
                         'format': format_art,
-                        'contenances': '',  # vide, mais on peut calculer plus tard
+                        'contenances': '',  # ou on peut calculer la contenance réelle
                         'Référence': article,
                         'agence': agence,
                         'valeur': 0.0
@@ -568,7 +568,7 @@ if nouvelles_lignes:
     df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
 
 # --------------------------------------------------------------------
-# 10. FILTRES (prévisions uniquement)
+# 11. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
@@ -609,7 +609,7 @@ if mode_affichage == "Par mois":
     df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 11. TABLEAU CROISÉ DYNAMIQUE
+# 12. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
@@ -661,7 +661,7 @@ else:
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 12. AFFICHAGE DU TABLEAU
+# 13. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
@@ -676,7 +676,7 @@ else:
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 13. TÉLÉCHARGEMENT
+# 14. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
