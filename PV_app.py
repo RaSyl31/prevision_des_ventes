@@ -455,7 +455,6 @@ def traiter_fichier(file_bytes, filename):
             format_manquant = extraire_format(article_manquant)
             contenance_manquant = extraire_contenance_cl(article_manquant)
 
-            # Recherche de candidats par priorité
             candidats = df_presents[
                 (df_presents['marque'] == marque_manquant) &
                 (df_presents['format'] == format_manquant)
@@ -489,61 +488,110 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DES PRÉVISIONS (CAGR)
+# 6. FONCTION DE CALCUL DES COEFFICIENTS SAISONNIERS
+# --------------------------------------------------------------------
+def calculer_saisonnalite(serie_mensuelle):
+    """
+    Calcule les coefficients saisonniers pour une série temporelle mensuelle.
+    Retourne un dictionnaire {mois: coefficient} ou None si pas assez de données.
+    """
+    if len(serie_mensuelle) < 12:
+        return None
+    # Moyenne par mois
+    moyennes_par_mois = serie_mensuelle.groupby(serie_mensuelle.index.month).mean()
+    # Moyenne globale mensuelle
+    moyenne_globale = serie_mensuelle.mean()
+    if moyenne_globale == 0:
+        return None
+    coeffs = (moyennes_par_mois / moyenne_globale).to_dict()
+    return coeffs
+
+def obtenir_saisonnalite_segment(df_hist, segment):
+    """
+    Calcule la saisonnalité moyenne pour un segment donné.
+    Retourne un dict {mois: coeff} ou None si impossible.
+    """
+    df_segment = df_hist[df_hist['segment'] == segment]
+    if df_segment.empty:
+        return None
+    # Agréger toutes les séries du segment
+    serie_agregee = df_segment.groupby('date')['valeur'].sum()
+    if len(serie_agregee) < 12:
+        return None
+    return calculer_saisonnalite(serie_agregee)
+
+# --------------------------------------------------------------------
+# 7. FONCTION DE CALCUL DES PRÉVISIONS AVEC SAISONNALITÉ
 # --------------------------------------------------------------------
 @st.cache_data
-def calculer_previsions_cagr(df_hist, annees_prev):
+def calculer_previsions_saisonnalite(df_hist, annees_prev):
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     previsions = []
 
-    for keys, group in df_hist.groupby(group_cols):
-        serie = group.sort_values('date').set_index('date')['valeur']
-        if len(serie) == 0:
-            continue
+    # Pré-calcul de la saisonnalité par segment
+    saisonnalite_segment = {}
+    for segment in df_hist['segment'].unique():
+        saisonnalite_segment[segment] = obtenir_saisonnalite_segment(df_hist, segment)
 
-        # Calcul du CAGR sur les données annuelles
-        # Regrouper par année et prendre la somme (ou la moyenne)
+    for keys, group in df_hist.groupby(group_cols):
+        segment, marque, format, contenances, reference, agence = keys
+
+        # Série temporelle mensuelle
+        serie = group.set_index('date')['valeur'].sort_index()
+
+        # Calcul de la saisonnalité spécifique au groupe (article-agence)
+        saisonnalite = calculer_saisonnalite(serie)
+        if saisonnalite is None:
+            # Repli sur la saisonnalité du segment
+            saisonnalite = saisonnalite_segment.get(segment)
+        if saisonnalite is None:
+            # Repli sur coefficient uniforme
+            saisonnalite = {i: 1.0 for i in range(1, 13)}
+
+        # Agrégation annuelle pour le CAGR
         annuel = serie.resample('Y').sum()
-        if len(annuel) < 2:
-            # Si moins de 2 années, on utilise la moyenne mensuelle
-            taux_mensuel = 0
-            derniere_valeur = serie.iloc[-1] if len(serie) > 0 else 0
-        else:
+        if len(annuel) >= 2:
             valeur_initiale = annuel.iloc[0]
             valeur_finale = annuel.iloc[-1]
             nb_annees = len(annuel) - 1
             if valeur_initiale > 0 and valeur_finale > 0:
                 cagr = (valeur_finale / valeur_initiale) ** (1 / nb_annees) - 1
-                # Convertir en taux mensuel approximatif
-                taux_mensuel = (1 + cagr) ** (1/12) - 1
             else:
-                taux_mensuel = 0
-            derniere_valeur = annuel.iloc[-1] / 12  # moyenne mensuelle de la dernière année
+                cagr = 0
+            # Somme annuelle de la dernière année
+            somme_derniere_annee = annuel.iloc[-1]
+        else:
+            # Si une seule année, on utilise la somme annuelle et cagr=0
+            cagr = 0
+            somme_derniere_annee = annuel.iloc[0] if len(annuel) == 1 else serie.sum()
 
-        # Générer les prévisions mensuelles
-        dernier_mois = serie.index.max()
-        for annee in annees_prev:
+        # Génération des prévisions
+        for i, annee in enumerate(annees_prev):
+            # Nombre d'années depuis la dernière année historique
+            nb_annees_projection = i + 1
+            # Somme annuelle prévue par le CAGR
+            somme_annuelle_prevue = somme_derniere_annee * (1 + cagr) ** nb_annees_projection
+            # Répartition mensuelle selon coefficients saisonniers
             for mois in range(1, 13):
                 date_prev = pd.Timestamp(year=annee, month=mois, day=1)
-                nb_mois = (date_prev.year - dernier_mois.year) * 12 + (date_prev.month - dernier_mois.month)
-                if nb_mois < 0:
-                    continue
-                prev_value = derniere_valeur * (1 + taux_mensuel) ** nb_mois
+                coeff = saisonnalite.get(mois, 1.0)
+                # La somme des coefficients devrait être 12, on normalise par 12 pour la répartition
+                valeur_mensuelle = (somme_annuelle_prevue / 12) * coeff
                 previsions.append({
                     'date': date_prev,
-                    'segment': keys[0],
-                    'marque': keys[1],
-                    'format': keys[2],
-                    'contenances': keys[3],
-                    'Référence': keys[4],
-                    'agence': keys[5],
-                    'valeur': prev_value
+                    'segment': segment,
+                    'marque': marque,
+                    'format': format,
+                    'contenances': contenances,
+                    'Référence': reference,
+                    'agence': agence,
+                    'valeur': valeur_mensuelle
                 })
 
     return pd.DataFrame(previsions)
 
 # --------------------------------------------------------------------
-# 7. CHARGEMENT DU FICHIER
+# 8. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📈 Analyse et Prévision des ventes")
 
@@ -563,7 +611,7 @@ except Exception as e:
     st.stop()
 
 # --------------------------------------------------------------------
-# 8. CHOIX DE L'UNITÉ
+# 9. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
 unite = st.sidebar.radio("Unité d'affichage", ["Hectolitres (ventes hecto)", "Bouteilles (ventes cols)"])
 
@@ -574,15 +622,15 @@ else:
     df['valeur'] = df['valeur'].round(0)
 
 # --------------------------------------------------------------------
-# 9. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# 10. GÉNÉRATION DES PRÉVISIONS (2027-2031)
 # --------------------------------------------------------------------
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
 
-df_prev = calculer_previsions_cagr(df_hist, annees_prev)
+df_prev = calculer_previsions_saisonnalite(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 10. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
+# 11. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
 # --------------------------------------------------------------------
 moyenne_globale = df_hist['valeur'].mean() if not df_hist.empty else 0
 articles_prev = set(df_prev['Référence'].unique())
@@ -595,9 +643,16 @@ if articles_manquants:
         marque = info['marque_actif']
         format_art = extraire_format(article)
         contenance = extraire_contenance_cl(article)
+        # Utiliser la saisonnalité du segment si dispo
+        saisonnalite_seg = saisonnalite_segment.get(seg)
+        if saisonnalite_seg is None:
+            saisonnalite_seg = {i: 1.0 for i in range(1, 13)}
         for agence in AGENCES:
             for annee in annees_prev:
+                somme_annuelle = moyenne_globale * 12  # approximation
                 for mois in range(1, 13):
+                    coeff = saisonnalite_seg.get(mois, 1.0)
+                    valeur = (somme_annuelle / 12) * coeff
                     nouvelles_lignes.append({
                         'date': pd.Timestamp(year=annee, month=mois, day=1),
                         'segment': seg,
@@ -606,13 +661,13 @@ if articles_manquants:
                         'contenances': '',
                         'Référence': article,
                         'agence': agence,
-                        'valeur': moyenne_globale
+                        'valeur': valeur
                     })
     if nouvelles_lignes:
         df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
 
 # --------------------------------------------------------------------
-# 11. FILTRES
+# 12. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
@@ -653,7 +708,7 @@ if mode_affichage == "Par mois":
     df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 12. TABLEAU CROISÉ DYNAMIQUE
+# 13. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
@@ -705,7 +760,7 @@ else:
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 13. AFFICHAGE DU TABLEAU
+# 14. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
@@ -720,7 +775,7 @@ else:
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 14. TÉLÉCHARGEMENT
+# 15. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
