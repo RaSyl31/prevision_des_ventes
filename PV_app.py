@@ -4,6 +4,7 @@ import numpy as np
 import re
 from datetime import datetime
 from io import BytesIO
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -466,80 +467,63 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DES COEFFICIENTS SAISONNIERS
+# 6. FONCTION DE PRÉVISION HOLT-WINTERS
 # --------------------------------------------------------------------
-def calculer_saisonnalite(serie_mensuelle):
-    if len(serie_mensuelle) < 12:
-        return None
-    moyennes_par_mois = serie_mensuelle.groupby(serie_mensuelle.index.month).mean()
-    moyenne_globale = serie_mensuelle.mean()
-    if moyenne_globale == 0:
-        return None
-    coeffs = (moyennes_par_mois / moyenne_globale).to_dict()
-    return coeffs
+def holt_winters_forecast(serie, steps=60, seasonal_periods=12):
+    """Applique Holt-Winters (additif) et retourne les prévisions."""
+    if len(serie) < 2*seasonal_periods:
+        # Pas assez de données -> on utilise une méthode naïve (moyenne mensuelle)
+        return np.repeat(serie.mean(), steps)
 
-def obtenir_saisonnalite_segment(df_hist, segment):
-    df_segment = df_hist[df_hist['segment'] == segment]
-    if df_segment.empty:
-        return None
-    serie_agregee = df_segment.groupby('date')['valeur'].sum()
-    if len(serie_agregee) < 12:
-        return None
-    return calculer_saisonnalite(serie_agregee)
+    model = ExponentialSmoothing(
+        serie,
+        trend="add",
+        seasonal="add",
+        seasonal_periods=seasonal_periods,
+        initialization_method="estimated"
+    )
+    fitted = model.fit(optimized=True)
+    forecast = fitted.forecast(steps)
+    return forecast
 
 # --------------------------------------------------------------------
-# 7. FONCTION DE CALCUL DES PRÉVISIONS AVEC SAISONNALITÉ
+# 7. GÉNÉRATION DES PRÉVISIONS POUR CHAQUE COMBINAISON ARTICLE-AGENCE
 # --------------------------------------------------------------------
 @st.cache_data
-def calculer_previsions_saisonnalite(df_hist, annees_prev):
-    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+def generer_previsions(df_hist, annees_prev):
     previsions = []
-
-    saisonnalite_segment = {}
-    for segment in df_hist['segment'].unique():
-        saisonnalite_segment[segment] = obtenir_saisonnalite_segment(df_hist, segment)
+    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
 
     for keys, group in df_hist.groupby(group_cols):
-        segment, marque, format, contenances, reference, agence = keys
+        segment, marque, format_, contenances, reference, agence = keys
 
-        serie = group.set_index('date')['valeur'].sort_index()
+        # Série temporelle mensuelle
+        serie = group.set_index('date')['valeur'].sort_index().asfreq('MS', fill_value=0)
 
-        saisonnalite = calculer_saisonnalite(serie)
-        if saisonnalite is None:
-            saisonnalite = saisonnalite_segment.get(segment)
-        if saisonnalite is None:
-            saisonnalite = {i: 1.0 for i in range(1, 13)}
+        # Prévision Holt-Winters (60 mois)
+        steps = len(annees_prev) * 12
+        try:
+            forecast = holt_winters_forecast(serie, steps=steps)
+        except Exception:
+            # En cas d'échec, on utilise la moyenne mobile
+            forecast = np.repeat(serie.mean(), steps)
 
-        annuel = serie.resample('YE').sum()
-        if len(annuel) >= 2:
-            valeur_initiale = annuel.iloc[0]
-            valeur_finale = annuel.iloc[-1]
-            nb_annees = len(annuel) - 1
-            if valeur_initiale > 0 and valeur_finale > 0:
-                cagr = (valeur_finale / valeur_initiale) ** (1 / nb_annees) - 1
-            else:
-                cagr = 0
-            somme_derniere_annee = annuel.iloc[-1]
-        else:
-            cagr = 0
-            somme_derniere_annee = annuel.iloc[0] if len(annuel) == 1 else serie.sum()
-
+        # Construire les dates de prévision
+        dernier_mois = serie.index.max()
         for i, annee in enumerate(annees_prev):
-            nb_annees_projection = i + 1
-            somme_annuelle_prevue = somme_derniere_annee * (1 + cagr) ** nb_annees_projection
             for mois in range(1, 13):
                 date_prev = pd.Timestamp(year=annee, month=mois, day=1)
-                coeff = saisonnalite.get(mois, 1.0)
-                valeur_mensuelle = (somme_annuelle_prevue / 12) * coeff
+                idx = i * 12 + (mois - 1)
+                valeur = forecast[idx]
                 previsions.append({
                     'date': date_prev,
                     'segment': segment,
                     'marque': marque,
-                    'format': format,
+                    'format': format_,
                     'contenances': contenances,
                     'Référence': reference,
                     'agence': agence,
-                    'valeur': valeur_mensuelle
+                    'valeur': valeur
                 })
 
     return pd.DataFrame(previsions)
@@ -547,7 +531,7 @@ def calculer_previsions_saisonnalite(df_hist, annees_prev):
 # --------------------------------------------------------------------
 # 8. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
-st.title("📈 Analyse et Prévision des ventes")
+st.title("📈 Analyse et Prévision des ventes (Holt-Winters)")
 
 uploaded_file = st.file_uploader("Choisissez le fichier historique (Excel ou CSV)", type=["xlsx", "csv"])
 
@@ -581,7 +565,7 @@ else:
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
 
-df_prev = calculer_previsions_saisonnalite(df_hist, annees_prev)
+df_prev = generer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
 # 11. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
@@ -597,15 +581,15 @@ if articles_manquants:
         marque = info['marque_actif']
         format_art = extraire_format(article)
         contenance = extraire_contenance_cl(article)
-        saisonnalite_seg = obtenir_saisonnalite_segment(df_hist, seg)
-        if saisonnalite_seg is None:
-            saisonnalite_seg = {i: 1.0 for i in range(1, 13)}
+        # Moyenne du segment pour la saisonnalité
+        df_segment = df_hist[df_hist['segment'] == seg]
+        if not df_segment.empty:
+            moyenne_segment = df_segment['valeur'].mean()
+        else:
+            moyenne_segment = moyenne_globale
         for agence in AGENCES:
             for annee in annees_prev:
-                somme_annuelle = moyenne_globale * 12
                 for mois in range(1, 13):
-                    coeff = saisonnalite_seg.get(mois, 1.0)
-                    valeur = (somme_annuelle / 12) * coeff
                     nouvelles_lignes.append({
                         'date': pd.Timestamp(year=annee, month=mois, day=1),
                         'segment': seg,
@@ -614,7 +598,7 @@ if articles_manquants:
                         'contenances': '',
                         'Référence': article,
                         'agence': agence,
-                        'valeur': valeur
+                        'valeur': moyenne_segment
                     })
     if nouvelles_lignes:
         df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
