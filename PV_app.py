@@ -244,12 +244,12 @@ def extraire_contenance(contenances):
 df_products['contenance_cl'] = df_products['contenances'].apply(extraire_contenance)
 
 # --------------------------------------------------------------------
-# 2. GÉNÉRATION DE DONNÉES FICTIVES
+# 2. GÉNÉRATION DE DONNÉES FICTIVES (de 2017 à 2031)
 # --------------------------------------------------------------------
 @st.cache_data
 def generate_dummy_data():
     start_date = datetime(2017, 1, 1)
-    end_date = datetime(2026, 8, 1)
+    end_date = datetime(2031, 12, 1)
     dates = pd.date_range(start=start_date, end=end_date, freq='MS')
     agences = [
         "00-Siège", "01-Tanjombato", "03-Usine-Diego", "04-Tulear",
@@ -263,9 +263,18 @@ def generate_dummy_data():
             base = random.uniform(10, 500)
             trend = random.uniform(-0.02, 0.05)
             for i, date in enumerate(dates):
-                seasonal = 1 + 0.3 * np.sin((date.month - 1) * 2 * np.pi / 12)
-                noise = random.uniform(-0.2, 0.2)
-                quantite = max(0, int(base * (1 + i * trend) * seasonal * (1 + noise)))
+                # Historique (avant 2027) : bruit et saisonnalité
+                # Prévision (2027+) : prolongation tendance + bruit réduit
+                if date.year < 2027:
+                    seasonal = 1 + 0.3 * np.sin((date.month - 1) * 2 * np.pi / 12)
+                    noise = random.uniform(-0.2, 0.2)
+                    quantite = max(0, int(base * (1 + i * trend) * seasonal * (1 + noise)))
+                else:
+                    # Prévision : tendance linéaire + légère saisonnalité, moins de bruit
+                    seasonal = 1 + 0.1 * np.sin((date.month - 1) * 2 * np.pi / 12)
+                    noise = random.uniform(-0.05, 0.05)
+                    # i est l'index global depuis 2017, on continue la tendance
+                    quantite = max(0, int(base * (1 + i * trend) * seasonal * (1 + noise)))
                 data.append({
                     'date': date,
                     'agence': agence,
@@ -286,7 +295,7 @@ data_option = st.radio(
 
 if data_option == "Utiliser des données fictives (démo)":
     df_ventes = generate_dummy_data()
-    st.success("Données fictives générées.")
+    st.success("Données fictives générées (2017-2031).")
 else:
     uploaded_file = st.file_uploader("Choisissez un fichier CSV", type="csv")
     if uploaded_file is not None:
@@ -319,19 +328,14 @@ df_ventes['valeur'] = df_ventes['quantite'] if unite == "Quantité (bouteilles)"
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
-mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence"])
+mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence", "Par année"])
 
-# Années : de 2017 à 2031
+# Années : de 2017 à 2031 (toutes les options)
 annees_options = list(range(2017, 2032))
-# Ne garder que les années présentes dans les données (pour éviter des sélections vides)
-annees_disponibles = sorted(df_ventes['date'].dt.year.unique())
-annees_options = [y for y in annees_options if y in annees_disponibles]
-# Ajouter 2031 même si pas de données (pour prévisions futures)
-if 2031 not in annees_options:
-    annees_options.append(2031)
-# S'assurer que les options sont triées
-annees_options = sorted(set(annees_options))
 selected_annees = st.sidebar.multiselect("Année", options=annees_options, default=annees_options)
+
+# Note sur les prévisions
+st.sidebar.markdown("**Note** : Les années 2027 à 2031 sont des **prévisions** (affichées en bleu dans le mode Par année).")
 
 # Filtrer par années
 df_temp = df_ventes[df_ventes['date'].dt.year.isin(selected_annees)]
@@ -341,7 +345,7 @@ segments_options = sorted(df_temp['segment'].dropna().unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 df_temp = df_temp[df_temp['segment'].isin(selected_segments)]
 
-# Marque (basé sur les segments sélectionnés)
+# Marque
 marques_options = sorted(df_temp['marque_1'].dropna().unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 df_temp = df_temp[df_temp['marque_1'].isin(selected_marques)]
@@ -356,16 +360,11 @@ contenances_options = sorted(df_temp['contenances'].dropna().unique())
 selected_contenances = st.sidebar.multiselect("Contenance", options=contenances_options, default=contenances_options)
 df_temp = df_temp[df_temp['contenances'].isin(selected_contenances)]
 
-# Agence (si mode "Par mois", on propose les agences ; en mode "Par agence", toutes les agences sont conservées)
+# Agence (seulement pour le mode "Par mois")
 if mode_affichage == "Par mois":
     agences_options = sorted(df_temp['agence'].unique())
     selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
     df_temp = df_temp[df_temp['agence'].isin(selected_agences)]
-else:
-    # En mode "Par agence", on garde toutes les agences pour le pivot
-    selected_agences = sorted(df_temp['agence'].unique())  # pas de filtre additionnel
-    # Pas de sélection d'agence dans la sidebar (elles apparaîtront en colonnes)
-    st.sidebar.info("Agences affichées en colonnes")
 
 # --------------------------------------------------------------------
 # 6. TABLEAU CROISÉ DYNAMIQUE
@@ -390,8 +389,10 @@ if mode_affichage == "Par mois":
     )
     mois_cols = [f"{i:02d}" for i in range(1, 13)]
     pivot = pivot.reindex(columns=mois_cols + ['Total général'], fill_value=0)
-    st.subheader(f"Ventes par mois - Années sélectionnées : {', '.join(map(str, selected_annees))}")
-else:
+    st.subheader(f"Ventes par mois - Années : {', '.join(map(str, selected_annees))}")
+    styled = pivot.style.set_properties(**{'color': 'black'})  # pas de coloration spéciale
+
+elif mode_affichage == "Par agence":
     pivot = pd.pivot_table(
         df_temp,
         values='valeur',
@@ -402,7 +403,34 @@ else:
         margins=True,
         margins_name='Total général'
     )
-    st.subheader(f"Ventes par agence - Années sélectionnées : {', '.join(map(str, selected_annees))}")
+    st.subheader(f"Ventes par agence - Années : {', '.join(map(str, selected_annees))}")
+    styled = pivot.style.set_properties(**{'color': 'black'})
+
+else:  # Par année
+    df_temp['annee'] = df_temp['date'].dt.year
+    pivot = pd.pivot_table(
+        df_temp,
+        values='valeur',
+        index=index_cols,
+        columns='annee',
+        aggfunc='sum',
+        fill_value=0,
+        margins=True,
+        margins_name='Total général'
+    )
+    # Colonnes des années 2027 à 2031 en bleu
+    def color_blue(val, col_name):
+        if col_name in ['Total général']:
+            return ''
+        try:
+            year = int(col_name)
+            if year >= 2027:
+                return 'color: blue; font-weight: bold'
+        except:
+            pass
+        return ''
+    st.subheader(f"Ventes par année (les colonnes 2027+ sont des prévisions en bleu)")
+    styled = pivot.style.apply(lambda col: [color_blue(v, col.name) for v in col], axis=0)
 
 # --------------------------------------------------------------------
 # 7. AFFICHAGE DU TABLEAU
@@ -414,7 +442,24 @@ if unite == "Volume (hectolitres)":
     for col in pivot_reset.columns[1:]:
         pivot_reset[col] = pivot_reset[col].round(2)
 
-st.dataframe(pivot_reset, use_container_width=True, height=700)
+# Utiliser le Styler pour l'affichage si coloration définie
+if mode_affichage == "Par année":
+    # Réapplique le style sur le DataFrame reset_index (les colonnes années sont des chaînes)
+    # On reconstruit le Styler sur pivot_reset avec les mêmes règles
+    def color_year_cols(val, col_name):
+        if col_name in ['Total général', 'segment', 'marque_1', 'format', 'contenances', 'Référence']:
+            return ''
+        try:
+            year = int(col_name)
+            if year >= 2027:
+                return 'color: blue; font-weight: bold'
+        except:
+            pass
+        return ''
+    styled = pivot_reset.style.apply(lambda col: [color_year_cols(v, col.name) for v in col], axis=0)
+    st.dataframe(styled, use_container_width=True, height=700)
+else:
+    st.dataframe(pivot_reset, use_container_width=True, height=700)
 
 # --------------------------------------------------------------------
 # 8. TÉLÉCHARGEMENT
