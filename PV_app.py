@@ -10,6 +10,60 @@ import random
 st.set_page_config(page_title="Prévision des ventes", layout="wide")
 
 # --------------------------------------------------------------------
+# CSS personnalisé : fond noir et accents rouges
+# --------------------------------------------------------------------
+st.markdown("""
+<style>
+    /* Fond principal noir */
+    .stApp {
+        background-color: #000000;
+    }
+
+    /* Titres en rouge */
+    h1, h2, h3, h4, h5, h6 {
+        color: #E63946;
+    }
+
+    /* Texte général en blanc */
+    .stMarkdown, .stText, .stCaption {
+        color: #FFFFFF;
+    }
+
+    /* Widgets (selectbox, slider) fond sombre et bordure rouge */
+    .stSelectbox div[data-baseweb="select"] > div,
+    .stSlider div[data-baseweb="slider"] {
+        background-color: #1A1A1A;
+        border: 1px solid #E63946;
+    }
+
+    /* Boutons rouges */
+    .stButton > button {
+        background-color: #E63946;
+        color: white;
+        border: none;
+    }
+    .stButton > button:hover {
+        background-color: #C1121F;
+    }
+
+    /* Liens en rouge */
+    a {
+        color: #E63946;
+    }
+
+    /* Sidebar également en noir */
+    .css-1d391kg {
+        background-color: #000000;
+    }
+
+    /* Tableaux et dataframes */
+    .stDataFrame {
+        border: 1px solid #E63946;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------
 # 1. LISTES DES AGENCES, SEGMENTS, MARQUES, ARTICLES
 # --------------------------------------------------------------------
 AGENCES = [
@@ -122,7 +176,7 @@ def generate_dummy_data():
     start_date = datetime(2021, 1, 1)
     end_date = datetime(2023, 12, 1)
     dates = pd.date_range(start=start_date, end=end_date, freq='MS')  # début de mois
-    
+
     data = []
     for agence in AGENCES:
         for _, row in df_articles.iterrows():
@@ -248,7 +302,7 @@ fig.add_trace(go.Scatter(
     y=df_prophet['y'],
     mode='lines+markers',
     name='Historique',
-    line=dict(color='blue')
+    line=dict(color='#E63946')  # rouge pour l'historique
 ))
 
 # Prévision
@@ -257,7 +311,7 @@ fig.add_trace(go.Scatter(
     y=forecast['yhat'],
     mode='lines',
     name='Prévision',
-    line=dict(color='red')
+    line=dict(color='#FFFFFF')  # blanc pour la prévision
 ))
 
 # Intervalle de confiance
@@ -274,7 +328,7 @@ fig.add_trace(go.Scatter(
     mode='lines',
     line=dict(width=0),
     fill='tonexty',
-    fillcolor='rgba(255,0,0,0.2)',
+    fillcolor='rgba(230, 57, 70, 0.2)',  # rouge semi-transparent
     name='Intervalle de confiance'
 ))
 
@@ -282,7 +336,10 @@ fig.update_layout(
     title=f"Prévision sur {periods} mois",
     xaxis_title="Date",
     yaxis_title="Quantité",
-    hovermode="x unified"
+    hovermode="x unified",
+    paper_bgcolor='black',   # fond noir du graphique
+    plot_bgcolor='black',
+    font=dict(color='white')
 )
 
 st.plotly_chart(fig, use_container_width=True)
