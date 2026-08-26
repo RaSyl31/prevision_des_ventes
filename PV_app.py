@@ -147,7 +147,6 @@ ACTIVE_ARTICLES = [
     ("Energy", "XXL", "XXL 35cl PET"),
 ]
 
-# Convertir en DataFrame
 df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_actif", "article_actif"])
 
 # --------------------------------------------------------------------
@@ -177,10 +176,21 @@ def nettoyer_reference(ref):
         return re.sub(r'^\d+\s*-\s*', '', ref)
     return ref
 
-def extraire_contenance_cl(contenances):
-    m = re.search(r'(\d+)\s*cl', str(contenances))
+def extraire_contenance_cl(article_str):
+    """Extrait la contenance en cl à partir du libellé de l'article."""
+    m = re.search(r'(\d+)\s*CL', article_str, re.IGNORECASE)
     if m:
         return int(m.group(1))
+    m = re.search(r'(\d+)\s*L', article_str, re.IGNORECASE)
+    if m:
+        return int(m.group(1)) * 100
+    return None
+
+def extraire_format(article_str):
+    """Extrait le format (VER, PET, CAN, FUT, BOI) à partir du libellé."""
+    m = re.search(r'\b(VER|PET|CAN|FUT|BOI)\b', article_str)
+    if m:
+        return m.group(1)
     return None
 
 # --------------------------------------------------------------------
@@ -188,13 +198,12 @@ def extraire_contenance_cl(contenances):
 # --------------------------------------------------------------------
 @st.cache_data
 def traiter_fichier(file_bytes, filename):
-    """Lit le fichier, nettoie et filtre les données, retourne un DataFrame prêt."""
+    """Lit le fichier, nettoie, complète les articles manquants et retourne un DataFrame prêt."""
     if filename.endswith('.csv'):
         df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
 
-    # Vérifier colonnes requises
     required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
     if not all(col in df_raw.columns for col in required_cols):
         raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
@@ -204,9 +213,6 @@ def traiter_fichier(file_bytes, filename):
 
     # Nettoyer la colonne Référence (supprimer préfixe)
     df['Référence'] = df['Référence'].apply(nettoyer_reference)
-
-    # Filtrer pour ne garder que les articles actifs
-    df = df[df['Référence'].isin(df_active['article_actif'])]
 
     # Convertir la colonne Année en numérique
     df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
@@ -221,11 +227,71 @@ def traiter_fichier(file_bytes, filename):
     df = df[df['mois_num'].notna()]
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
 
-    # Extraire la contenance en cl
+    # Extraire la contenance en cl à partir de la colonne 'contenances'
     df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
 
     # Renommer les colonnes
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
+
+    # --------------------------------------------------------------------
+    # Gestion des articles actifs manquants
+    # --------------------------------------------------------------------
+    # Articles actifs présents après nettoyage
+    articles_presents = set(df['Référence'].unique())
+    articles_actifs_set = set(df_active['article_actif'])
+    articles_manquants = articles_actifs_set - articles_presents
+
+    if articles_manquants:
+        # Préparer un mapping pour trouver un article similaire présent
+        # On crée un DataFrame des articles présents avec segment, marque, format, contenance extraite
+        df_presents = df[['Référence', 'segment', 'marque', 'format', 'contenance_cl']].drop_duplicates()
+        # Pour chaque article manquant, trouver un article similaire présent
+        for article_manquant in articles_manquants:
+            # Récupérer ses informations depuis df_active
+            info_manquant = df_active[df_active['article_actif'] == article_manquant].iloc[0]
+            seg_manquant = info_manquant['segment_actif']
+            marque_manquant = info_manquant['marque_actif']
+            format_manquant = extraire_format(article_manquant)
+            contenance_manquant = extraire_contenance_cl(article_manquant)
+
+            # Critères de similarité : même marque et même format, sinon même segment et même format
+            candidats = df_presents[
+                (df_presents['marque'] == marque_manquant) &
+                (df_presents['format'] == format_manquant)
+            ]
+            if candidats.empty:
+                candidats = df_presents[
+                    (df_presents['segment'] == seg_manquant) &
+                    (df_presents['format'] == format_manquant)
+                ]
+            if candidats.empty:
+                # Dernier recours : même segment, peu importe le format
+                candidats = df_presents[df_presents['segment'] == seg_manquant]
+
+            if not candidats.empty:
+                # Choisir le candidat avec la contenance la plus proche
+                candidats = candidats.copy()
+                candidats['diff_contenance'] = (candidats['contenance_cl'] - contenance_manquant).abs()
+                meilleur = candidats.sort_values('diff_contenance').iloc[0]
+                article_similaire = meilleur['Référence']
+
+                # Dupliquer les lignes de cet article similaire pour l'article manquant
+                lignes_similaires = df[df['Référence'] == article_similaire].copy()
+                if not lignes_similaires.empty:
+                    # Remplacer les informations par celles de l'article manquant
+                    lignes_similaires['Référence'] = article_manquant
+                    lignes_similaires['segment'] = seg_manquant
+                    lignes_similaires['marque'] = marque_manquant
+                    lignes_similaires['format'] = format_manquant
+                    lignes_similaires['contenances'] = info_manquant.get('contenances', '')  # si dispo
+                    lignes_similaires['contenance_cl'] = contenance_manquant
+                    # Ajouter au DataFrame principal
+                    df = pd.concat([df, lignes_similaires], ignore_index=True)
+            # Si aucun candidat, on ignore l'article manquant (ou on le signale)
+    # Fin de la gestion des articles manquants
+
+    # Maintenant on filtre pour ne garder que les articles actifs (y compris ceux ajoutés)
+    df = df[df['Référence'].isin(df_active['article_actif'])]
 
     return df
 
@@ -288,7 +354,6 @@ if uploaded_file is None:
     st.info("Veuillez téléverser un fichier Excel (.xlsx) ou CSV contenant les colonnes : Année, Mois, segment, marque_1, format, Nom agence, contenances, Référence, ventes hecto.")
     st.stop()
 
-# Lire les bytes du fichier uploadé
 file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
 
