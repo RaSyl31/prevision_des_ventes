@@ -4,7 +4,6 @@ import numpy as np
 import re
 from datetime import datetime
 import random
-from io import StringIO
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -244,7 +243,6 @@ PRODUCT_LIST = [
 # Création du DataFrame des produits
 df_products = pd.DataFrame(PRODUCT_LIST, columns=["segment", "marque_1", "format", "contenances", "Référence"])
 
-# Extraire la contenance numérique en cl
 def extraire_contenance(contenances):
     m = re.search(r'(\d+)\s*cl', contenances)
     return int(m.group(1)) if m else None
@@ -252,7 +250,7 @@ def extraire_contenance(contenances):
 df_products['contenance_cl'] = df_products['contenances'].apply(extraire_contenance)
 
 # --------------------------------------------------------------------
-# 2. GÉNÉRATION DE DONNÉES FICTIVES (de 2017 à 2031)
+# 2. GÉNÉRATION DE DONNÉES FICTIVES (historique 2017-2026 + prévisions 2027-2031)
 # --------------------------------------------------------------------
 @st.cache_data
 def generate_dummy_data():
@@ -329,30 +327,21 @@ df_ventes['valeur'] = df_ventes['quantite'] if unite == "Quantité (bouteilles)"
 
 # --------------------------------------------------------------------
 # 5. FILTRES MULTIPLES (cases à cocher)
+#    Filtre année restreint aux prévisions 2027-2031
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
 mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence", "Par année"])
 
-# Années : de 2017 à 2031 avec indicateur pour les prévisions
-annees_options = list(range(2017, 2032))
-
-def format_annee(annee):
-    if annee >= 2027:
-        return f"{annee} 🔵 (prévision)"
-    else:
-        return str(annee)
-
+# Années de prévision uniquement
+annees_options = [2027, 2028, 2029, 2030, 2031]
 selected_annees = st.sidebar.multiselect(
-    "Année",
+    "Année (prévisions)",
     options=annees_options,
-    default=annees_options,
-    format_func=format_annee
+    default=annees_options
 )
 
-st.sidebar.markdown("**Note** : 🔵 = années de prévision (2027-2031).")
-
-# Filtrer par années
+# Filtrer directement sur les années sélectionnées (prévisions)
 df_temp = df_ventes[df_ventes['date'].dt.year.isin(selected_annees)]
 
 # Segment
@@ -404,7 +393,7 @@ if mode_affichage == "Par mois":
     )
     mois_cols = [f"{i:02d}" for i in range(1, 13)]
     pivot = pivot.reindex(columns=mois_cols + ['Total général'], fill_value=0)
-    st.subheader(f"Ventes par mois - Années : {', '.join(map(str, selected_annees))}")
+    st.subheader("Prévisions par mois (années 2027-2031)")
     styled = None
 
 elif mode_affichage == "Par agence":
@@ -418,7 +407,7 @@ elif mode_affichage == "Par agence":
         margins=True,
         margins_name='Total général'
     )
-    st.subheader(f"Ventes par agence - Années : {', '.join(map(str, selected_annees))}")
+    st.subheader("Prévisions par agence (années 2027-2031)")
     styled = None
 
 else:  # Par année
@@ -433,18 +422,9 @@ else:  # Par année
         margins=True,
         margins_name='Total général'
     )
-    st.subheader("Ventes par année (colonnes bleues = prévisions 2027-2031)")
-    def color_blue(val, col_name):
-        if col_name in ['Total général']:
-            return ''
-        try:
-            year = int(col_name)
-            if year >= 2027:
-                return 'color: blue; font-weight: bold'
-        except:
-            pass
-        return ''
-    styled = pivot.style.apply(lambda col: [color_blue(v, col.name) for v in col], axis=0)
+    st.subheader("Prévisions par année (2027-2031)")
+    # Pas de coloration spéciale car toutes les colonnes sont des prévisions
+    styled = None
 
 # --------------------------------------------------------------------
 # 7. AFFICHAGE DU TABLEAU
@@ -456,21 +436,7 @@ if unite == "Volume (hectolitres)":
     for col in pivot_reset.columns[1:]:
         pivot_reset[col] = pivot_reset[col].round(2)
 
-if mode_affichage == "Par année":
-    def color_year_cols(val, col_name):
-        if col_name in ['Total général', 'segment', 'marque_1', 'format', 'contenances', 'Référence']:
-            return ''
-        try:
-            year = int(col_name)
-            if year >= 2027:
-                return 'color: blue; font-weight: bold'
-        except:
-            pass
-        return ''
-    styled = pivot_reset.style.apply(lambda col: [color_year_cols(v, col.name) for v in col], axis=0)
-    st.dataframe(styled, use_container_width=True, height=800)
-else:
-    st.dataframe(pivot_reset, use_container_width=True, height=800)
+st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
 # 8. TÉLÉCHARGEMENT
@@ -479,6 +445,6 @@ csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
     label="Télécharger le tableau (CSV)",
     data=csv,
-    file_name=f"ventes_{mode_affichage.lower().replace(' ', '_')}_{unite.lower().replace(' ', '_')}.csv",
+    file_name=f"previsions_{mode_affichage.lower().replace(' ', '_')}_{unite.lower().replace(' ', '_')}.csv",
     mime="text/csv"
 )
