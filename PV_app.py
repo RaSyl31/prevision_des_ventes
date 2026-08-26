@@ -67,7 +67,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES ARTICLES ACTIFS (segment, Marque, Article)
+# 1. LISTE DES ARTICLES ACTIFS
 # --------------------------------------------------------------------
 ACTIVE_ARTICLES = [
     ("ALCOMIX", "Booster", "Booster Appel-Mix 50CL VER"),
@@ -152,8 +152,7 @@ df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_acti
 # --------------------------------------------------------------------
 # 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
 # --------------------------------------------------------------------
-# (Insérer ici le dictionnaire REFERENCE_TO_ARTICLE complet fourni par l'utilisateur)
-# Pour des raisons de longueur, je le remets ci-dessous en entier.
+# (Insérer ici le dictionnaire complet fourni précédemment)
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
     "102-THB Pilsener 33 cl VER": "THB Pilsener 33 cl VER",
@@ -411,7 +410,7 @@ def extraire_format(article_str):
     return None
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CHARGEMENT ET NETTOYAGE AVEC SIMILARITÉ
+# 5. FONCTION DE CHARGEMENT ET NETTOYAGE AVEC SIMILARITÉ AMÉLIORÉE
 # --------------------------------------------------------------------
 @st.cache_data
 def traiter_fichier(file_bytes, filename):
@@ -445,7 +444,7 @@ def traiter_fichier(file_bytes, filename):
     df = df[df['Référence'].isin(df_active['article_actif'])]
 
     # --------------------------------------------------------------------
-    # Gestion des articles actifs manquants (similarité)
+    # Gestion des articles actifs manquants (similarité améliorée)
     # --------------------------------------------------------------------
     articles_presents = set(df['Référence'].unique())
     articles_actifs_set = set(df_active['article_actif'])
@@ -461,20 +460,28 @@ def traiter_fichier(file_bytes, filename):
             format_manquant = extraire_format(article_manquant)
             contenance_manquant = extraire_contenance_cl(article_manquant)
 
-            # Chercher article similaire
+            # Recherche de candidats par priorité décroissante
+            candidats = pd.DataFrame()
+            # 1. Même marque, même format
             candidats = df_presents[
                 (df_presents['marque'] == marque_manquant) &
                 (df_presents['format'] == format_manquant)
             ]
+            # 2. Même marque, tous formats
+            if candidats.empty:
+                candidats = df_presents[df_presents['marque'] == marque_manquant]
+            # 3. Même segment, même format
             if candidats.empty:
                 candidats = df_presents[
                     (df_presents['segment'] == seg_manquant) &
                     (df_presents['format'] == format_manquant)
                 ]
+            # 4. Même segment, tous formats
             if candidats.empty:
                 candidats = df_presents[df_presents['segment'] == seg_manquant]
 
             if not candidats.empty:
+                # Choisir le candidat avec la contenance la plus proche
                 candidats = candidats.copy()
                 candidats['diff_contenance'] = (candidats['contenance_cl'] - contenance_manquant).abs()
                 meilleur = candidats.sort_values('diff_contenance').iloc[0]
@@ -493,7 +500,7 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DES PRÉVISIONS
+# 6. FONCTION DE CALCUL DES PRÉVISIONS AMÉLIORÉE
 # --------------------------------------------------------------------
 @st.cache_data
 def calculer_previsions(df_hist, annees_prev):
@@ -502,20 +509,27 @@ def calculer_previsions(df_hist, annees_prev):
 
     for keys, group in df_hist.groupby(group_cols):
         serie = group.sort_values('date').set_index('date')['valeur']
-        if len(serie) < 12:
+        if len(serie) == 0:
             continue
 
         dernier_mois = serie.index.max()
         date_debut = dernier_mois - pd.DateOffset(years=3)
         serie_recente = serie[serie.index >= date_debut]
         if len(serie_recente) == 0:
-            continue
+            # Utiliser la série complète si moins de 3 ans
+            serie_recente = serie
 
-        x = np.arange(len(serie_recente))
-        y = serie_recente.values
-        coeffs = np.polyfit(x, y, 1)
-        pente = coeffs[0]
-        derniere_valeur = serie_recente.iloc[-1]
+        # Si moins de 12 points, on utilise la moyenne comme prévision constante
+        if len(serie_recente) < 12:
+            pente = 0
+            derniere_valeur = serie_recente.mean() if len(serie_recente) > 0 else 0
+        else:
+            # Régression linéaire
+            x = np.arange(len(serie_recente))
+            y = serie_recente.values
+            coeffs = np.polyfit(x, y, 1)
+            pente = coeffs[0]
+            derniere_valeur = serie_recente.iloc[-1]
 
         segment_val, marque_val, format_val, contenances_val, ref_val, agence_val = keys
 
@@ -579,7 +593,7 @@ annees_prev = [2027, 2028, 2029, 2030, 2031]
 df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 10. AJOUT DE ZÉROS POUR LES ARTICLES TOUJOURS SANS DONNÉES
+# 10. AJOUT DE ZÉROS EN DERNIER RECOURS (uniquement si toujours manquant)
 # --------------------------------------------------------------------
 nouvelles_lignes = []
 for _, row_active in df_active.iterrows():
@@ -603,7 +617,7 @@ for _, row_active in df_active.iterrows():
                         'segment': seg,
                         'marque': marque,
                         'format': format_art,
-                        'contenances': '',  # on peut laisser vide
+                        'contenances': '',  # ou on peut calculer la contenance réelle
                         'Référence': article,
                         'agence': agence,
                         'valeur': 0.0
