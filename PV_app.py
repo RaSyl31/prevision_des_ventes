@@ -236,25 +236,20 @@ def traiter_fichier(file_bytes, filename):
     # --------------------------------------------------------------------
     # Gestion des articles actifs manquants
     # --------------------------------------------------------------------
-    # Articles actifs présents après nettoyage
     articles_presents = set(df['Référence'].unique())
     articles_actifs_set = set(df_active['article_actif'])
     articles_manquants = articles_actifs_set - articles_presents
 
     if articles_manquants:
         # Préparer un mapping pour trouver un article similaire présent
-        # On crée un DataFrame des articles présents avec segment, marque, format, contenance extraite
         df_presents = df[['Référence', 'segment', 'marque', 'format', 'contenance_cl']].drop_duplicates()
-        # Pour chaque article manquant, trouver un article similaire présent
         for article_manquant in articles_manquants:
-            # Récupérer ses informations depuis df_active
             info_manquant = df_active[df_active['article_actif'] == article_manquant].iloc[0]
             seg_manquant = info_manquant['segment_actif']
             marque_manquant = info_manquant['marque_actif']
             format_manquant = extraire_format(article_manquant)
             contenance_manquant = extraire_contenance_cl(article_manquant)
 
-            # Critères de similarité : même marque et même format, sinon même segment et même format
             candidats = df_presents[
                 (df_presents['marque'] == marque_manquant) &
                 (df_presents['format'] == format_manquant)
@@ -265,35 +260,27 @@ def traiter_fichier(file_bytes, filename):
                     (df_presents['format'] == format_manquant)
                 ]
             if candidats.empty:
-                # Dernier recours : même segment, peu importe le format
                 candidats = df_presents[df_presents['segment'] == seg_manquant]
 
             if not candidats.empty:
-                # Choisir le candidat avec la contenance la plus proche
                 candidats = candidats.copy()
                 candidats['diff_contenance'] = (candidats['contenance_cl'] - contenance_manquant).abs()
                 meilleur = candidats.sort_values('diff_contenance').iloc[0]
                 article_similaire = meilleur['Référence']
 
-                # Dupliquer les lignes de cet article similaire pour l'article manquant
                 lignes_similaires = df[df['Référence'] == article_similaire].copy()
                 if not lignes_similaires.empty:
-                    # Remplacer les informations par celles de l'article manquant
                     lignes_similaires['Référence'] = article_manquant
                     lignes_similaires['segment'] = seg_manquant
                     lignes_similaires['marque'] = marque_manquant
                     lignes_similaires['format'] = format_manquant
-                    lignes_similaires['contenances'] = info_manquant.get('contenances', '')  # si dispo
+                    lignes_similaires['contenances'] = info_manquant.get('contenances', '')
                     lignes_similaires['contenance_cl'] = contenance_manquant
-                    # Ajouter au DataFrame principal
                     df = pd.concat([df, lignes_similaires], ignore_index=True)
-            # Si aucun candidat, on ignore l'article manquant (ou on le signale)
+            # Si aucun candidat, on ne fait rien ; l'article sera ajouté avec valeur nulle plus tard
     # Fin de la gestion des articles manquants
 
-    # Maintenant on filtre pour ne garder que les articles actifs (y compris ceux ajoutés)
-    df = df[df['Référence'].isin(df_active['article_actif'])]
-
-    return df
+    return df  # On ne filtre PAS sur les articles actifs ici
 
 # --------------------------------------------------------------------
 # 4. FONCTION DE CALCUL DES PRÉVISIONS (avec cache)
@@ -383,7 +370,49 @@ annees_prev = [2027, 2028, 2029, 2030, 2031]
 df_prev = calculer_previsions(df_hist, annees_prev)
 
 # --------------------------------------------------------------------
-# 8. FILTRES (prévisions uniquement)
+# 8. ASSURER QUE TOUS LES ARTICLES ACTIFS SONT PRÉSENTS
+# --------------------------------------------------------------------
+# Créer une liste complète des combinaisons article-agence pour les prévisions
+# On récupère les agences présentes dans les prévisions ou dans les données historiques
+agences_disponibles = sorted(df_hist['agence'].unique())
+# Pour chaque article actif, on s'assure qu'il existe des prévisions pour chaque agence et chaque mois
+# En l'absence de prévisions, la valeur sera 0
+nouvelles_lignes = []
+for _, row_active in df_active.iterrows():
+    seg = row_active['segment_actif']
+    marque = row_active['marque_actif']
+    article = row_active['article_actif']
+    format_art = extraire_format(article)
+    contenance = extraire_contenance_cl(article)
+    # Si l'article n'existe pas déjà dans df_prev, on crée des lignes avec 0
+    for agence in agences_disponibles:
+        # Vérifier si cette combinaison existe déjà dans df_prev
+        masque = (
+            (df_prev['segment'] == seg) &
+            (df_prev['marque'] == marque) &
+            (df_prev['Référence'] == article) &
+            (df_prev['agence'] == agence)
+        )
+        if not masque.any():
+            # Ajouter des lignes 0 pour chaque mois de chaque année de prévision
+            for annee in annees_prev:
+                for mois in range(1, 13):
+                    nouvelles_lignes.append({
+                        'date': pd.Timestamp(year=annee, month=mois, day=1),
+                        'segment': seg,
+                        'marque': marque,
+                        'format': format_art,
+                        'contenances': '',  # on peut laisser vide
+                        'Référence': article,
+                        'agence': agence,
+                        'valeur': 0.0
+                    })
+
+if nouvelles_lignes:
+    df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
+
+# --------------------------------------------------------------------
+# 9. FILTRES (prévisions uniquement)
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
@@ -424,7 +453,7 @@ if mode_affichage == "Par mois":
     df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 9. TABLEAU CROISÉ DYNAMIQUE
+# 10. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
@@ -476,7 +505,7 @@ else:
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 10. AFFICHAGE DU TABLEAU
+# 11. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
@@ -491,7 +520,7 @@ else:
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 11. TÉLÉCHARGEMENT
+# 12. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
