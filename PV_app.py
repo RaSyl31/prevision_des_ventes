@@ -473,7 +473,7 @@ def holt_winters_forecast(serie, steps=60, seasonal_periods=12):
     """Applique Holt-Winters (additif) et retourne les prévisions."""
     if len(serie) < 2*seasonal_periods:
         # Pas assez de données -> on utilise une méthode naïve (moyenne mensuelle)
-        return np.repeat(serie.mean(), steps)
+        return pd.Series(np.repeat(serie.mean(), steps))
 
     model = ExponentialSmoothing(
         serie,
@@ -509,15 +509,17 @@ def generer_previsions(df_hist, annees_prev):
             forecast = holt_winters_forecast(serie, steps=steps)
         except Exception:
             # En cas d'échec, on utilise la moyenne mobile
-            forecast = np.repeat(serie.mean(), steps)
+            forecast = pd.Series(np.repeat(serie.mean(), steps))
+
+        # Convertir en tableau numpy pour accès par position
+        forecast_values = forecast.to_numpy()
 
         # Construire les dates de prévision
-        dernier_mois = serie.index.max()
         for i, annee in enumerate(annees_prev):
             for mois in range(1, 13):
                 date_prev = pd.Timestamp(year=annee, month=mois, day=1)
                 idx = i * 12 + (mois - 1)
-                valeur = forecast[idx]
+                valeur = forecast_values[idx]
                 previsions.append({
                     'date': date_prev,
                     'segment': segment,
