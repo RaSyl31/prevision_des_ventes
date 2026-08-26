@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import re
 from datetime import datetime
-import random
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -11,7 +10,7 @@ import random
 st.set_page_config(page_title="Analyse et Prévision des ventes", layout="wide")
 
 # --------------------------------------------------------------------
-# CSS personnalisé : fond gris clair, texte noir, tableau agrandi, titres ajustés
+# CSS personnalisé : fond gris clair, texte noir, tableau agrandi
 # --------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -67,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES ARTICLES ACTIFS (segment, marque, article)
+# 1. LISTE DES ARTICLES ACTIFS (segment, Marque, Article)
 # --------------------------------------------------------------------
 ACTIVE_ARTICLES = [
     ("ALCOMIX", "Booster", "Booster Appel-Mix 50CL VER"),
@@ -147,161 +146,215 @@ ACTIVE_ARTICLES = [
     ("Energy", "XXL", "XXL 35cl PET"),
 ]
 
-# Création du DataFrame des articles actifs
-df_articles = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment", "marque", "article"])
+# Convertir en DataFrame
+df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_actif", "article_actif"])
 
 # --------------------------------------------------------------------
-# 2. EXTRACTION DE LA CONTENANCE EN CL POUR LE CALCUL EN HECTOLITRES
+# 2. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
-def extract_contenance(article):
-    """Extrait la contenance en cl à partir du libellé de l'article."""
-    # Patterns : 50CL, 50 cl, 50cl, 20L, 20 l, 2000 cl, etc.
-    # On convertit tout en cl.
-    # Recherche d'un nombre suivi de CL (insensible à la casse)
-    m = re.search(r'(\d+)\s*(?:CL|cl)', article)
-    if m:
-        return int(m.group(1))
-    # Recherche d'un nombre suivi de L (litres)
-    m = re.search(r'(\d+)\s*(?:L|l)', article)
-    if m:
-        return int(m.group(1)) * 100  # 1 L = 100 cl
-    # Si non trouvé, on retourne None (ne sera pas utilisé pour le volume)
+MOIS_FR = {
+    'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4, 'mai': 5, 'juin': 6,
+    'juillet': 7, 'août': 8, 'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
+}
+
+def parse_mois(mois_str):
+    if isinstance(mois_str, str):
+        mois_str = mois_str.lower().strip()
+        return MOIS_FR.get(mois_str)
     return None
 
-df_articles['contenance_cl'] = df_articles['article'].apply(extract_contenance)
+def nettoyer_nombre(val):
+    if isinstance(val, str):
+        val = val.replace(' ', '').replace(',', '.')
+    try:
+        return float(val)
+    except:
+        return 0.0
+
+def nettoyer_reference(ref):
+    """
+    Supprime le préfixe numérique et le tiret.
+    Exemple : "103-Queen s 65 cl VER" devient "Queen s 65 cl VER".
+    """
+    if isinstance(ref, str):
+        return re.sub(r'^\d+\s*-\s*', '', ref)
+    return ref
 
 # --------------------------------------------------------------------
-# 3. GÉNÉRATION DE DONNÉES FICTIVES (historique 2017-2026 + prévisions 2027-2031)
-# --------------------------------------------------------------------
-@st.cache_data
-def generate_dummy_data():
-    start_date = datetime(2017, 1, 1)
-    end_date = datetime(2031, 12, 1)
-    dates = pd.date_range(start=start_date, end=end_date, freq='MS')
-    agences = [
-        "00-Siège", "01-Tanjombato", "03-Usine-Diego", "04-Tulear",
-        "05-Fianarantsoa", "06-Ihosy", "07-Majunga", "08-Manakara",
-        "09-Tamatave", "11-Andranomahery", "12-Antsirabe", "18-Ambanja",
-        "19-Sambava", "21-Nosy-Be", "23-Morondava", "24-Fort-Dauphin"
-    ]
-    data = []
-    for _, art in df_articles.iterrows():
-        for agence in agences:
-            base = random.uniform(10, 500)
-            trend = random.uniform(-0.02, 0.05)
-            for i, date in enumerate(dates):
-                if date.year < 2027:
-                    seasonal = 1 + 0.3 * np.sin((date.month - 1) * 2 * np.pi / 12)
-                    noise = random.uniform(-0.2, 0.2)
-                    quantite = max(0, int(base * (1 + i * trend) * seasonal * (1 + noise)))
-                else:
-                    seasonal = 1 + 0.1 * np.sin((date.month - 1) * 2 * np.pi / 12)
-                    noise = random.uniform(-0.05, 0.05)
-                    quantite = max(0, int(base * (1 + i * trend) * seasonal * (1 + noise)))
-                data.append({
-                    'date': date,
-                    'agence': agence,
-                    'article': art['article'],
-                    'quantite': quantite
-                })
-    return pd.DataFrame(data)
-
-# --------------------------------------------------------------------
-# 4. CHARGEMENT DES DONNÉES
+# 3. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📈 Analyse et Prévision des ventes")
 
-data_option = st.radio(
-    "Source des données :",
-    ["Utiliser des données fictives (démo)", "Importer un fichier CSV"]
-)
+uploaded_file = st.file_uploader("Choisissez le fichier historique (Excel ou CSV)", type=["xlsx", "csv"])
 
-if data_option == "Utiliser des données fictives (démo)":
-    df_ventes = generate_dummy_data()
-    st.success("Données fictives générées (2017-2031).")
-else:
-    uploaded_file = st.file_uploader("Choisissez un fichier CSV", type="csv")
-    if uploaded_file is not None:
-        try:
-            df_ventes = pd.read_csv(uploaded_file)
-            required_cols = ['date', 'agence', 'article', 'quantite']
-            if not all(col in df_ventes.columns for col in required_cols):
-                st.error(f"Le fichier CSV doit contenir les colonnes : {', '.join(required_cols)}")
-                st.stop()
-            df_ventes['date'] = pd.to_datetime(df_ventes['date'])
-            st.success("Fichier chargé avec succès.")
-        except Exception as e:
-            st.error(f"Erreur lors de la lecture du fichier : {e}")
-            st.stop()
+if uploaded_file is None:
+    st.info("Veuillez téléverser un fichier Excel (.xlsx) ou CSV contenant les colonnes : Année, Mois, segment, marque_1, format, Nom agence, contenances, Référence, ventes hecto.")
+    st.stop()
+
+try:
+    if uploaded_file.name.endswith('.csv'):
+        df_raw = pd.read_csv(uploaded_file, sep='\t', dtype={'Année': int})
     else:
-        st.info("Veuillez téléverser un fichier CSV avec les colonnes : date, agence, article, quantite.")
-        st.stop()
+        df_raw = pd.read_excel(uploaded_file, dtype={'Année': int})
+except Exception as e:
+    st.error(f"Erreur de lecture du fichier : {e}")
+    st.stop()
 
-# Fusionner avec le tableau des articles pour obtenir segment, marque et contenance
-df_ventes = df_ventes.merge(df_articles, on='article', how='left')
+required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
+if not all(col in df_raw.columns for col in required_cols):
+    st.error(f"Le fichier doit contenir les colonnes : {', '.join(required_cols)}")
+    st.stop()
+
+# --------------------------------------------------------------------
+# 4. NETTOYAGE DES DONNÉES
+# --------------------------------------------------------------------
+# Filtrer les lignes de détail : Référence non vide et ne contenant pas "Total"
+df = df_raw[df_raw['Référence'].notna() & ~df_raw['Référence'].astype(str).str.contains('Total', na=False)].copy()
+
+# Nettoyer la colonne Référence (supprimer préfixe)
+df['Référence'] = df['Référence'].apply(nettoyer_reference)
+
+# Filtrer pour ne garder que les articles actifs
+df = df[df['Référence'].isin(df_active['article_actif'])]
+
+# Convertir la colonne "ventes hecto" en numérique
+df['ventes_hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
+
+# Créer la date
+df['mois_num'] = df['Mois'].apply(parse_mois)
+df = df[df['mois_num'].notna()]
+df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
+
+# Extraire la contenance en cl
+def extraire_contenance_cl(contenances):
+    m = re.search(r'(\d+)\s*cl', str(contenances))
+    if m:
+        return int(m.group(1))
+    return None
+
+df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
+
+# Renommer les colonnes
+df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
 # --------------------------------------------------------------------
 # 5. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
-unite = st.sidebar.radio("Unité d'affichage", ["Quantité (bouteilles)", "Volume (hectolitres)"])
-if unite == "Quantité (bouteilles)":
-    df_ventes['valeur'] = df_ventes['quantite']
+unite = st.sidebar.radio("Unité d'affichage", ["Hectolitres (ventes hecto)", "Bouteilles (quantité)"])
+
+if unite == "Hectolitres (ventes hecto)":
+    df['valeur'] = df['ventes_hecto']
 else:
-    # Volume en hectolitres : quantite * contenance_cl / 10000
-    df_ventes['valeur'] = df_ventes['quantite'] * df_ventes['contenance_cl'] / 10000.0
+    df['valeur'] = df['ventes_hecto'] * 10000 / df['contenance_cl']
+    df['valeur'] = df['valeur'].round(0)
 
 # --------------------------------------------------------------------
-# 6. FILTRES MULTIPLES (cases à cocher)
-#    Filtre année restreint aux prévisions 2027-2031
+# 6. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# --------------------------------------------------------------------
+# Historique jusqu'à 2026
+df_hist = df[df['date'].dt.year <= 2026].copy()
+annees_prev = [2027, 2028, 2029, 2030, 2031]
+
+# Colonnes de groupement
+group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+
+# Préparation des prévisions
+previsions = []
+
+for _, group in df_hist.groupby(group_cols):
+    serie = group.sort_values('date').set_index('date')['valeur']
+    if len(serie) < 12:
+        continue
+
+    # 3 dernières années
+    dernier_mois = serie.index.max()
+    date_debut = dernier_mois - pd.DateOffset(years=3)
+    serie_recente = serie[serie.index >= date_debut]
+    if len(serie_recente) == 0:
+        continue
+
+    # Régression linéaire
+    x = np.arange(len(serie_recente))
+    y = serie_recente.values
+    coeffs = np.polyfit(x, y, 1)
+    pente = coeffs[0]
+    derniere_valeur = serie_recente.iloc[-1]
+
+    # Prévisions pour chaque mois des années 2027-2031
+    for annee in annees_prev:
+        for mois in range(1, 13):
+            date_prev = pd.Timestamp(year=annee, month=mois, day=1)
+            nb_mois = (date_prev.year - dernier_mois.year) * 12 + (date_prev.month - dernier_mois.month)
+            if nb_mois < 0:
+                continue
+            prev_value = max(0, derniere_valeur + pente * nb_mois)
+            previsions.append({
+                'date': date_prev,
+                'segment': group[0],
+                'marque': group[1],
+                'format': group[2],
+                'contenances': group[3],
+                'Référence': group[4],
+                'agence': group[5],
+                'valeur': prev_value
+            })
+
+df_prev = pd.DataFrame(previsions)
+
+# --------------------------------------------------------------------
+# 7. FILTRES (prévisions uniquement)
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
 mode_affichage = st.sidebar.radio("Affichage", ["Par mois", "Par agence", "Par année"])
 
-annees_options = [2027, 2028, 2029, 2030, 2031]
 selected_annees = st.sidebar.multiselect(
     "Année (prévisions)",
-    options=annees_options,
-    default=annees_options
+    options=annees_prev,
+    default=annees_prev
 )
 
-# Filtrer directement sur les années sélectionnées
-df_temp = df_ventes[df_ventes['date'].dt.year.isin(selected_annees)]
+df_filtre = df_prev[df_prev['date'].dt.year.isin(selected_annees)]
 
 # Segment
-segments_options = sorted(df_temp['segment'].dropna().unique())
+segments_options = sorted(df_filtre['segment'].dropna().unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-df_temp = df_temp[df_temp['segment'].isin(selected_segments)]
+df_filtre = df_filtre[df_filtre['segment'].isin(selected_segments)]
 
 # Marque
-marques_options = sorted(df_temp['marque'].dropna().unique())
+marques_options = sorted(df_filtre['marque'].dropna().unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
-df_temp = df_temp[df_temp['marque'].isin(selected_marques)]
+df_filtre = df_filtre[df_filtre['marque'].isin(selected_marques)]
 
-# Article
-articles_options = sorted(df_temp['article'].dropna().unique())
-selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
-df_temp = df_temp[df_temp['article'].isin(selected_articles)]
+# Format
+formats_options = sorted(df_filtre['format'].dropna().unique())
+selected_formats = st.sidebar.multiselect("Format", options=formats_options, default=formats_options)
+df_filtre = df_filtre[df_filtre['format'].isin(selected_formats)]
 
-# Agence (seulement pour le mode "Par mois")
+# Contenance
+contenances_options = sorted(df_filtre['contenances'].dropna().unique())
+selected_contenances = st.sidebar.multiselect("Contenance", options=contenances_options, default=contenances_options)
+df_filtre = df_filtre[df_filtre['contenances'].isin(selected_contenances)]
+
+# Agence (si mode "Par mois")
 if mode_affichage == "Par mois":
-    agences_options = sorted(df_temp['agence'].unique())
+    agences_options = sorted(df_filtre['agence'].unique())
     selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
-    df_temp = df_temp[df_temp['agence'].isin(selected_agences)]
+    df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 7. TABLEAU CROISÉ DYNAMIQUE
+# 8. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
-index_cols = ['segment', 'marque', 'article']
+index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
-if df_temp.empty:
+if df_filtre.empty:
     st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
 
 if mode_affichage == "Par mois":
-    df_temp['mois'] = df_temp['date'].dt.month.astype(str).str.zfill(2)
+    df_filtre['mois'] = df_filtre['date'].dt.month.astype(str).str.zfill(2)
     pivot = pd.pivot_table(
-        df_temp,
+        df_filtre,
         values='valeur',
         index=index_cols,
         columns='mois',
@@ -316,7 +369,7 @@ if mode_affichage == "Par mois":
 
 elif mode_affichage == "Par agence":
     pivot = pd.pivot_table(
-        df_temp,
+        df_filtre,
         values='valeur',
         index=index_cols,
         columns='agence',
@@ -327,10 +380,10 @@ elif mode_affichage == "Par agence":
     )
     st.subheader("Prévisions par agence (années 2027-2031)")
 
-else:  # Par année
-    df_temp['annee'] = df_temp['date'].dt.year
+else:
+    df_filtre['annee'] = df_filtre['date'].dt.year
     pivot = pd.pivot_table(
-        df_temp,
+        df_filtre,
         values='valeur',
         index=index_cols,
         columns='annee',
@@ -342,19 +395,22 @@ else:  # Par année
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 8. AFFICHAGE DU TABLEAU
+# 9. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
 
-if unite == "Volume (hectolitres)":
+if unite == "Hectolitres (ventes hecto)":
     for col in pivot_reset.columns[1:]:
         pivot_reset[col] = pivot_reset[col].round(2)
+else:
+    for col in pivot_reset.columns[1:]:
+        pivot_reset[col] = pivot_reset[col].round(0)
 
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 9. TÉLÉCHARGEMENT
+# 10. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
