@@ -172,10 +172,6 @@ def nettoyer_nombre(val):
         return 0.0
 
 def nettoyer_reference(ref):
-    """
-    Supprime le préfixe numérique et le tiret.
-    Exemple : "103-Queen s 65 cl VER" devient "Queen s 65 cl VER".
-    """
     if isinstance(ref, str):
         return re.sub(r'^\d+\s*-\s*', '', ref)
     return ref
@@ -193,13 +189,16 @@ if uploaded_file is None:
 
 try:
     if uploaded_file.name.endswith('.csv'):
-        df_raw = pd.read_csv(uploaded_file, sep='\t', dtype={'Année': int})
+        # Pour CSV, on ne force pas le type, on lira en str, puis conversion plus bas
+        df_raw = pd.read_csv(uploaded_file, sep='\t')
     else:
-        df_raw = pd.read_excel(uploaded_file, dtype={'Année': int})
+        # Pour Excel, pas de dtype imposé, on lira tout en type par défaut
+        df_raw = pd.read_excel(uploaded_file)
 except Exception as e:
     st.error(f"Erreur de lecture du fichier : {e}")
     st.stop()
 
+# Vérifier les colonnes requises
 required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
 if not all(col in df_raw.columns for col in required_cols):
     st.error(f"Le fichier doit contenir les colonnes : {', '.join(required_cols)}")
@@ -216,6 +215,12 @@ df['Référence'] = df['Référence'].apply(nettoyer_reference)
 
 # Filtrer pour ne garder que les articles actifs
 df = df[df['Référence'].isin(df_active['article_actif'])]
+
+# Convertir la colonne Année en numérique (gère les espaces, valeurs manquantes)
+df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
+# Supprimer les lignes où Année est NaN
+df = df.dropna(subset=['Année'])
+df['Année'] = df['Année'].astype(int)
 
 # Convertir la colonne "ventes hecto" en numérique
 df['ventes_hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
@@ -251,14 +256,11 @@ else:
 # --------------------------------------------------------------------
 # 6. GÉNÉRATION DES PRÉVISIONS (2027-2031)
 # --------------------------------------------------------------------
-# Historique jusqu'à 2026
 df_hist = df[df['date'].dt.year <= 2026].copy()
 annees_prev = [2027, 2028, 2029, 2030, 2031]
 
-# Colonnes de groupement
 group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
 
-# Préparation des prévisions
 previsions = []
 
 for _, group in df_hist.groupby(group_cols):
@@ -266,21 +268,18 @@ for _, group in df_hist.groupby(group_cols):
     if len(serie) < 12:
         continue
 
-    # 3 dernières années
     dernier_mois = serie.index.max()
     date_debut = dernier_mois - pd.DateOffset(years=3)
     serie_recente = serie[serie.index >= date_debut]
     if len(serie_recente) == 0:
         continue
 
-    # Régression linéaire
     x = np.arange(len(serie_recente))
     y = serie_recente.values
     coeffs = np.polyfit(x, y, 1)
     pente = coeffs[0]
     derniere_valeur = serie_recente.iloc[-1]
 
-    # Prévisions pour chaque mois des années 2027-2031
     for annee in annees_prev:
         for mois in range(1, 13):
             date_prev = pd.Timestamp(year=annee, month=mois, day=1)
