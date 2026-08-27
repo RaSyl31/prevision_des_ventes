@@ -26,87 +26,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES ARTICLES ACTIFS
+# 1. LISTE DES AGENCES EXACTES
 # --------------------------------------------------------------------
-ACTIVE_ARTICLES = [
-    ("ALCOMIX", "Booster", "Booster Appel-Mix 50CL VER"),
-    ("ALCOMIX", "Booster", "Booster Tornado 50CL VER VER"),
-    ("BG", "Caprice", "Caprice Ananas 100 cl VER"),
-    ("BG", "Caprice", "Caprice Ananas 150 cl PET"),
-    ("BG", "Caprice", "Caprice Ananas 30 cl VER"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 100 cl VER"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 150 cl PET"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 20L FUT"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 30 cl VER"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 30L FUT"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 33 cl CAN"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 35 cl PET"),
-    ("BG", "Caprice", "Caprice Bonbon Anglais 50 cl PET"),
-    ("BG", "Caprice", "Caprice Grenadine 100 cl VER"),
-    ("BG", "Caprice", "Caprice Grenadine 150 cl PET"),
-    ("BG", "Caprice", "Caprice Grenadine 30 cl VER"),
-    ("BG", "Caprice", "Caprice Grenadine 33 cl CAN"),
-    ("BG", "Caprice", "Caprice Grenadine 35 cl PET"),
-    ("BG", "Caprice", "Caprice Grenadine 50 cl PET"),
-    ("BG", "Caprice", "Caprice Orange 100 cl VER"),
-    ("BG", "Caprice", "Caprice Orange 150 cl PET"),
-    ("BG", "Caprice", "Caprice Orange 20L FUT"),
-    ("BG", "Caprice", "Caprice Orange 30 cl VER"),
-    ("BG", "Caprice", "Caprice Orange 33 cl CAN"),
-    ("BG", "Caprice", "Caprice Orange 35 cl PET"),
-    ("BG", "Caprice", "Caprice Orange 50 cl PET"),
-    ("BG", "Tonic", "Tonic 100 cl VER"),
-    ("BG", "Tonic", "Tonic 30 cl VER"),
-    ("BG", "World Cola", "World Cola 100cl VER"),
-    ("BG", "World Cola", "World Cola 100cl WOCO VER"),
-    ("BG", "World Cola", "World Cola 150cl PET"),
-    ("BG", "World Cola", "World Cola 20L FUT"),
-    ("BG", "World Cola", "World Cola 30cl VER"),
-    ("BG", "World Cola", "World Cola 30cl WOCO VER"),
-    ("BG", "World Cola", "World Cola 33 cl CAN"),
-    ("BG", "World Cola", "World Cola 35cl PET"),
-    ("BG", "World Cola", "World Cola 50cl PET"),
-    ("BI", "Beaufort", "Beaufort 33 CL CAN"),
-    ("BI", "Beaufort", "Beaufort 33CL VER"),
-    ("BI", "FRESH", "FRESH 33 cl CAN"),
-    ("BI", "FRESH", "THB Fresh 33 cl VER"),
-    ("BI", "FRESH", "THB Fresh 65 cl VER"),
-    ("BI", "Gold", "Gold 8 50 cl CAN"),
-    ("BI", "Gold", "Gold 8 50 cl VER"),
-    ("BI", "Gold", "Gold Blanche 20L FUT"),
-    ("BI", "Gold", "Gold Blanche 33cl VER"),
-    ("BI", "Gold", "Gold Blanche 50 cl CAN"),
-    ("BI", "Gold", "Gold Blanche 50 cl VER"),
-    ("BI", "Gold", "Gold Blonde 33 cl VER"),
-    ("BI", "Gold", "Gold Blonde 50 cl CAN"),
-    ("BI", "Gold", "Gold Blonde 50 cl VER"),
-    ("BI", "Gold", "Gold Blonde 65 cl VER"),
-    ("BI", "Queen", "Queen s 65 cl VER"),
-    ("BI", "THB", "THB BLanche 20L FUT"),
-    ("BI", "THB", "THB Pilsener 20L Export FUT"),
-    ("BI", "THB", "THB Pilsener 20L FUT"),
-    ("BI", "THB", "THB Pilsener 30L Export FUT"),
-    ("BI", "THB", "THB Pilsener 30L FUT"),
-    ("BI", "THB", "THB Pilsener 33 cl VER"),
-    ("BI", "THB", "THB Pilsener 50 cl CAN"),
-    ("BI", "THB", "THB Pilsener 65 cl VER"),
-    ("EAUX", "Cristal", "Cristal 100 cl VER"),
-    ("EAUX", "Cristal", "Cristal 150 cl PET"),
-    ("EAUX", "Cristal", "Cristal 30 cl VER"),
-    ("EAUX", "Cristal", "Cristal 50 cl VER"),
-    ("EAUX", "Cristalline", "Cristalline 100 cl PET"),
-    ("EAUX", "Cristalline", "Cristalline 200 cl PET"),
-    ("EAUX", "Eau", "Eau vive 150 cl PET"),
-    ("EAUX", "Eau", "Eau vive 50 cl PET"),
-    ("EAUX", "Eau", "Eau vive 50 cl VER"),
-    ("Energy", "FOSA", "FOSA 50 cl CAN"),
-    ("Energy", "XXL", "XXL 30cl BOB VER"),
-    ("Energy", "XXL", "XXL 30cl VER"),
-    ("Energy", "XXL", "XXL 33 cl CAN"),
-    ("Energy", "XXL", "XXL 35cl PET"),
+AGENCES = [
+    "01-Tanjombato",
+    "03-Usine-Diego",
+    "04-Tulear",
+    "05-Fianarantsoa",
+    "06-Ihosy",
+    "07-Majunga",
+    "08-Manakara",
+    "09-Tamatave",
+    "11-Andranomahery",
+    "12-Antsirabe",
+    "18-Ambanja",
+    "19-Sambava",
+    "21-Nosy-Be",
+    "23-Morondava",
+    "24-Fort-Dauphin"
 ]
-
-df_active = pd.DataFrame(ACTIVE_ARTICLES, columns=["segment_actif", "marque_actif", "article_actif"])
 
 # --------------------------------------------------------------------
 # 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (complète)
@@ -342,21 +280,6 @@ def nettoyer_nombre(val):
     except:
         return 0.0
 
-def extraire_contenance_cl(article_str):
-    m = re.search(r'(\d+)\s*CL', article_str, re.IGNORECASE)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'(\d+)\s*L', article_str, re.IGNORECASE)
-    if m:
-        return int(m.group(1)) * 100
-    return None
-
-def extraire_format(article_str):
-    m = re.search(r'\b(VER|PET|CAN|FUT|BOI)\b', article_str)
-    if m:
-        return m.group(1)
-    return None
-
 # --------------------------------------------------------------------
 # 4. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
@@ -400,29 +323,20 @@ df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
 df['mois_num'] = df['Mois'].apply(parse_mois)
 df = df[df['mois_num'].notna()]
 df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
 df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
-df = df[df['Référence'].isin(df_active['article_actif'])]
+# Filtrer pour ne garder que les agences valides
+df = df[df['agence'].isin(AGENCES)]
 
 # --------------------------------------------------------------------
-# 5. CHOIX DE L'UNITÉ
-# --------------------------------------------------------------------
-unite = st.sidebar.radio("Unité", ["Hectolitres", "Bouteilles"])
-
-if unite == "Hectolitres":
-    df['valeur'] = df['ventes hecto']
-else:
-    df['valeur'] = df['ventes hecto'] * 10000 / df['contenance_cl']
-
-# --------------------------------------------------------------------
-# 6. CALCUL DES COEFFICIENTS SAISONNIERS (méthode exacte)
+# 5. CALCUL DES COEFFICIENTS SAISONNIERS (méthode exacte)
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df):
     """
     Méthode :
-    1. Moyenne histo = moyenne des ventes par article/agence sur 2024-2025 (24 mois)
-    2. Coefficient mois = (vente mois 2024 + vente mois 2025) / 2 / Moyenne histo
+    1. Pour chaque article X et agence A, calculer la moyenne des ventes du mois M (2024 + 2025)
+    2. Calculer la moyenne des 12 moyennes (Z)
+    3. Coefficient du mois M = Moyenne du mois M / Z
     """
     # Filtrer sur 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
@@ -437,23 +351,24 @@ def calculer_coefficients_saisonniers(df):
     for keys, group in df_periode.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
         
-        # Moyenne histo = moyenne de toutes les ventes mensuelles de 2024-2025
-        moyenne_histo = group['valeur'].mean()
+        # Calculer la moyenne des ventes pour chaque mois (2024 + 2025)
+        moyennes_par_mois = {}
+        for mois in range(1, 13):
+            ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
+            if len(ventes_mois) > 0:
+                moyennes_par_mois[mois] = ventes_mois.mean()
+            else:
+                moyennes_par_mois[mois] = 0
         
-        if moyenne_histo <= 0:
+        # Calculer la moyenne des 12 moyennes (Z)
+        moyenne_des_moyennes = np.mean(list(moyennes_par_mois.values()))
+        
+        if moyenne_des_moyennes <= 0:
             continue
         
-        # Pour chaque mois, calculer la moyenne des ventes de ce mois sur 2024 et 2025
+        # Calculer les coefficients
         for mois in range(1, 13):
-            ventes_mois = group[group['date'].dt.month == mois]['valeur']
-            
-            if len(ventes_mois) == 0:
-                coefficient = 0
-            else:
-                # Moyenne des ventes du mois (ex: janvier 2024 + janvier 2025) / 2
-                moyenne_mois = ventes_mois.mean()
-                coefficient = moyenne_mois / moyenne_histo
-            
+            coefficient = moyennes_par_mois[mois] / moyenne_des_moyennes
             coefficients.append({
                 'segment': segment,
                 'marque': marque,
@@ -474,7 +389,7 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 7. TABLEAU PIVOT
+# 6. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.subheader("Coefficients de saisonnalité mensuels (période 2024-2025)")
 
@@ -494,7 +409,7 @@ pivot.columns = noms_mois
 st.dataframe(pivot, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 8. TÉLÉCHARGEMENT
+# 7. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
