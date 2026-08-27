@@ -18,15 +18,10 @@ st.markdown("""
     .stApp { background-color: #F0F2F6; }
     .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable, label { color: #000000; }
     h1 { font-size: 2.5rem !important; margin-top: 0px !important; margin-bottom: 0px !important; padding-top: 0px !important; color: #000000; }
-    h2, h3, h4 { margin-top: 0.2rem !important; margin-bottom: 0.2rem !important; }
-    .css-1d391kg, .css-1lcbmhc, .css-1out211 { background-color: #E0E2E6; }
-    .stSelectbox div[data-baseweb="select"] > div,
-    .stMultiSelect div[data-baseweb="select"] > div { background-color: #FFFFFF; border: 1px solid #CCCCCC; color: #000000; }
-    .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
-    .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
-    a { color: #0000EE; }
     .stDataFrame { width: 100%; border: 1px solid #CCCCCC; }
     div[data-testid="stDataFrame"] { height: 800px !important; }
+    .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
+    .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -404,31 +399,25 @@ def traiter_fichier(file_bytes, filename):
     df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
-    # Filtrer pour ne garder que les articles actifs présents
     df = df[df['Référence'].isin(df_active['article_actif'])]
 
     return df
 
 # --------------------------------------------------------------------
-# 6. CALCUL DES COEFFICIENTS SAISONNIERS PAR ARTICLE-AGENCE
+# 6. CALCUL DES COEFFICIENTS SAISONNIERS
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df_hist):
-    """
-    Calcule les coefficients saisonniers mensuels pour chaque combinaison article-agence.
-    """
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     coefficients = []
 
     for keys, group in df_hist.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
 
-        # Agréger par date (en cas de doublons)
         serie = group.groupby('date')['valeur'].sum().sort_index()
 
-        if len(serie) < 12:
-            continue  # Ignorer les séries trop courtes
+        if len(serie) < 24:  # Au moins 2 ans de données
+            continue
 
-        # Moyenne par mois
         moyennes_par_mois = serie.groupby(serie.index.month).mean()
         moyenne_globale = serie.mean()
 
@@ -489,58 +478,27 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 10. FILTRES
-# --------------------------------------------------------------------
-st.sidebar.header("Filtres")
-
-# Segment
-segments_options = sorted(df_coefficients['segment'].unique())
-selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-
-# Marque
-if selected_segments:
-    marques_options = sorted(df_coefficients[df_coefficients['segment'].isin(selected_segments)]['marque'].unique())
-else:
-    marques_options = sorted(df_coefficients['marque'].unique())
-selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
-
-# Agence
-agences_options = sorted(df_coefficients['agence'].unique())
-selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
-
-# Appliquer les filtres
-df_filtre = df_coefficients[
-    (df_coefficients['segment'].isin(selected_segments)) &
-    (df_coefficients['marque'].isin(selected_marques)) &
-    (df_coefficients['agence'].isin(selected_agences))
-]
-
-# --------------------------------------------------------------------
-# 11. AFFICHAGE DU TABLEAU PIVOT
+# 10. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.subheader("Coefficients de saisonnalité mensuels")
 
-# Créer un tableau pivot : lignes = article/agence, colonnes = mois
-pivot = df_filtre.pivot_table(
+pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
     columns='mois',
     values='coefficient',
     aggfunc='first'
 )
 
-# Réordonner les colonnes de 1 à 12
 mois_cols = list(range(1, 13))
-pivot = pivot.reindex(columns=mois_cols, fill_value=np.nan)
+pivot = pivot.reindex(columns=mois_cols)
 
-# Renommer les colonnes avec les noms des mois
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
 
-# Afficher le tableau
 st.dataframe(pivot, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 12. TÉLÉCHARGEMENT
+# 11. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
