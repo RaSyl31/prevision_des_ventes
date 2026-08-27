@@ -61,6 +61,7 @@ st.markdown("""
 AGENCES = [
     "01-Tanjombato",
     "03-Diego",
+    "03-Usine-Diego",
     "04-Tulear",
     "05-Fianarantsoa",
     "06-Ihosy",
@@ -72,17 +73,12 @@ AGENCES = [
     "17-Antsohihy",
     "18-Ambanja",
     "19-Sambava",
+    "21-Nosy-Be",
     "21-NosyBe",
     "23-Morondava",
+    "24-Fort-Dauphin",
     "24-Fort Dauphin"
 ]
-
-MAPPING_AGENCES = {
-    "13-Diego": "03-Diego",
-    "13-Usine-Diego": "03-Diego",
-    "03-Usine-Diego": "03-Diego",
-    "03-Diego": "03-Diego"
-}
 
 # --------------------------------------------------------------------
 # 2. FONCTIONS UTILITAIRES
@@ -144,9 +140,9 @@ def interpreter_resultats(df_coefficients, df_filtre):
         interpretations.append(f"**{marque}** : Pic en {noms_mois[pic-1]}, Variation saisonnière de {taux_variation:.0f}%")
     
     interpretations.append("\n### 🔍 Articles les Plus Saisonniers")
-    variabilite = df_filtre.groupby('Articles')['coefficient'].std().sort_values(ascending=False).head(3)
+    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False).head(3)
     for i, (article, std) in enumerate(variabilite.items(), 1):
-        df_article = df_filtre[df_filtre['Articles'] == article]
+        df_article = df_filtre[df_filtre['Référence'] == article]
         moy_article = df_article.groupby('mois')['coefficient'].mean()
         pic = moy_article.idxmax()
         creux = moy_article.idxmin()
@@ -188,12 +184,16 @@ def charger_et_calculer(file_bytes, filename):
         st.error(f"Colonnes manquantes. Requises : {required_cols}")
         st.stop()
     
-    # Filtrer les lignes de détail : Articles non vide et ne contenant pas "Total"
+    # Filtrer : Articles non vide et ne contenant PAS "Total" ou "vide"
     df = df_raw[
         df_raw['Articles'].notna() &
-        ~df_raw['Articles'].astype(str).str.contains('Total', na=False) &
+        ~df_raw['Articles'].astype(str).str.contains('Total', case=False, na=False) &
+        ~df_raw['Articles'].astype(str).str.contains('vide', case=False, na=False) &
+        df_raw['Articles'].astype(str).str.strip() != '' &
         df_raw['Mois année'].notna() &
-        ~df_raw['Mois année'].astype(str).str.contains('Total', na=False)
+        ~df_raw['Mois année'].astype(str).str.contains('Total', case=False, na=False) &
+        df_raw['Agences'].notna() &
+        ~df_raw['Agences'].astype(str).str.contains('Total', case=False, na=False)
     ].copy()
     
     # Renommer les colonnes
@@ -222,8 +222,7 @@ def charger_et_calculer(file_bytes, filename):
     # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
-    # Mapping agences
-    df['agence'] = df['agence'].replace(MAPPING_AGENCES)
+    # Filtrer pour ne garder que les agences valides
     df = df[df['agence'].isin(AGENCES)]
     
     # Filtrer période 2024-2025
@@ -360,10 +359,8 @@ st.dataframe(pivot, width='stretch', height=600)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
-# Calculer les coefficients globaux par mois (toutes agences confondues)
 coeffs_globaux_par_mois = df_filtre.groupby('mois')['coefficient'].mean()
 
-# Normaliser pour que la somme = 12
 somme_coeffs_graph = coeffs_globaux_par_mois.sum()
 if somme_coeffs_graph > 0:
     coeffs_globaux_normalises = (coeffs_globaux_par_mois / somme_coeffs_graph) * 12
