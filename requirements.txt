@@ -5,3 +5,4 @@ plotly
 prophet
 openpyxl
 statsmodels
+xgboost
