@@ -6,3 +6,4 @@ prophet
 openpyxl
 statsmodels
 xgboost
+scikit-learn
