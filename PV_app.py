@@ -184,17 +184,35 @@ def charger_et_calculer(file_bytes, filename):
         st.error(f"Colonnes manquantes. Requises : {required_cols}")
         st.stop()
     
-    # Filtrer : Articles non vide et ne contenant PAS "Total" ou "vide"
-    df = df_raw[
-        df_raw['Articles'].notna() &
-        ~df_raw['Articles'].astype(str).str.contains('Total', case=False, na=False) &
-        ~df_raw['Articles'].astype(str).str.contains('vide', case=False, na=False) &
-        df_raw['Articles'].astype(str).str.strip() != '' &
-        df_raw['Mois année'].notna() &
-        ~df_raw['Mois année'].astype(str).str.contains('Total', case=False, na=False) &
-        df_raw['Agences'].notna() &
-        ~df_raw['Agences'].astype(str).str.contains('Total', case=False, na=False)
-    ].copy()
+    # Filtrer les lignes : Articles non vide, ne contenant pas "Total" ou "vide"
+    # Utiliser des conditions séparées avec parenthèses
+    df = df_raw.copy()
+    
+    # Supprimer les lignes où Articles est NaN
+    df = df[df['Articles'].notna()]
+    
+    # Convertir en string pour les filtres
+    df['Articles_str'] = df['Articles'].astype(str)
+    
+    # Filtrer : pas de "Total", pas de "vide", pas vide
+    df = df[
+        (~df['Articles_str'].str.contains('Total', case=False, na=False)) &
+        (~df['Articles_str'].str.contains('vide', case=False, na=False)) &
+        (df['Articles_str'].str.strip() != '')
+    ]
+    
+    # Filtrer Mois année : non null et pas "Total"
+    df = df[df['Mois année'].notna()]
+    df['Mois_annee_str'] = df['Mois année'].astype(str)
+    df = df[~df['Mois_annee_str'].str.contains('Total', case=False, na=False)]
+    
+    # Filtrer Agences : non null et pas "Total"
+    df = df[df['Agences'].notna()]
+    df['Agences_str'] = df['Agences'].astype(str)
+    df = df[~df['Agences_str'].str.contains('Total', case=False, na=False)]
+    
+    # Supprimer les colonnes temporaires
+    df = df.drop(columns=['Articles_str', 'Mois_annee_str', 'Agences_str'])
     
     # Renommer les colonnes
     df.rename(columns={
