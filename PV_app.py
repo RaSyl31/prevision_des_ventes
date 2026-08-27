@@ -45,30 +45,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES AGENCES
+# 1. LISTES DE RÉFÉRENCE
 # --------------------------------------------------------------------
 AGENCES = [
-    "00-",
-    "01-Tanjombato",
-    "03-Usine-Diego",
-    "04-Tulear",
-    "05-Fianarantsoa",
-    "06-Ihosy",
-    "07-Majunga",
-    "08-Manakara",
-    "09-Tamatave",
-    "11-Andranomahery",
-    "12-Antsirabe",
-    "18-Ambanja",
-    "19-Sambava",
-    "21-Nosy-Be",
-    "23-Morondava",
+    "00-", "01-Tanjombato", "03-Usine-Diego", "04-Tulear", "05-Fianarantsoa",
+    "06-Ihosy", "07-Majunga", "08-Manakara", "09-Tamatave", "11-Andranomahery",
+    "12-Antsirabe", "18-Ambanja", "19-Sambava", "21-Nosy-Be", "23-Morondava",
     "24-Fort-Dauphin"
 ]
 
-# --------------------------------------------------------------------
-# 2. LISTE DES ARTICLES ACTIFS
-# --------------------------------------------------------------------
+SEGMENTS = ["1-BIERES", "2-BG", "3-EAUX", "5-ALCOMIX", "7-VIN"]
+
 ARTICLES_ACTIFS = [
     "Booster Appel-Mix 50CL VER", "Booster Tornado 50CL VER VER",
     "Caprice Ananas 100 cl VER", "Caprice Ananas 150 cl PET", "Caprice Ananas 30 cl VER",
@@ -98,9 +85,6 @@ ARTICLES_ACTIFS = [
     "FOSA 50 cl CAN", "XXL 30cl BOB VER", "XXL 30cl VER", "XXL 33 cl CAN", "XXL 35cl PET"
 ]
 
-# --------------------------------------------------------------------
-# 3. LISTE DES MARQUES
-# --------------------------------------------------------------------
 MARQUES = [
     "1-Booster", "1-Caprice", "1-Cristalline", "1-Queen s", "1-XXL",
     "2-Alcomix Divers", "2-Eau vive", "2-FOSA", "2-Tonic", "3-Cristal",
@@ -109,7 +93,7 @@ MARQUES = [
 ]
 
 # --------------------------------------------------------------------
-# 4. FONCTIONS UTILITAIRES
+# 2. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
 def nettoyer_nombre(val):
     if isinstance(val, str):
@@ -120,9 +104,9 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 5. FONCTION D'INTERPRÉTATION IA
+# 3. FONCTION D'INTERPRÉTATION IA
 # --------------------------------------------------------------------
-def interpreter_resultats(df_coefficients, df_filtre):
+def interpreter_resultats(df_filtre):
     if df_filtre.empty:
         return "Aucune donnée à interpréter."
     
@@ -192,7 +176,7 @@ def interpreter_resultats(df_coefficients, df_filtre):
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
-# 6. CHARGEMENT ET TRAITEMENT
+# 4. CHARGEMENT ET TRAITEMENT
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_et_calculer(file_bytes, filename):
@@ -201,7 +185,6 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # Vérifier les colonnes exactes
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
     if missing_cols:
@@ -231,7 +214,7 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir Année en numérique
+    # Convertir Année
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
@@ -239,7 +222,7 @@ def charger_et_calculer(file_bytes, filename):
     # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    # Extraire le mois depuis "Mois année"
+    # Extraire le mois
     df['mois_num'] = df['Mois année'].astype(str).str.strip().str.split(' ').str[0]
     df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
@@ -248,12 +231,13 @@ def charger_et_calculer(file_bytes, filename):
     # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
-    # Filtrer agences, articles, marques
+    # Filtres
     df = df[df['agence'].isin(AGENCES)]
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
     df = df[df['marque'].isin(MARQUES)]
+    df = df[df['segment'].isin(SEGMENTS)]
     
-    # Utiliser les années 2024-2025
+    # Période 2024-2025
     df_periode = df[df['Année'].isin([2024, 2025])]
     
     if df_periode.empty:
@@ -304,7 +288,7 @@ def charger_et_calculer(file_bytes, filename):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 7. CHARGEMENT DU FICHIER
+# 5. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
@@ -326,12 +310,15 @@ if df_coefficients.empty:
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
-# 8. FILTRES
+# 6. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
 agences_options = sorted(df_coefficients['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
+
+segments_options = sorted(df_coefficients['segment'].unique())
+selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
@@ -341,6 +328,7 @@ selected_marques = st.sidebar.multiselect("Marque", options=marques_options, def
 
 df_filtre = df_coefficients[
     (df_coefficients['agence'].isin(selected_agences)) &
+    (df_coefficients['segment'].isin(selected_segments)) &
     (df_coefficients['Référence'].isin(selected_articles)) &
     (df_coefficients['marque'].isin(selected_marques))
 ]
@@ -350,7 +338,7 @@ if df_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 9. TABLEAU PIVOT
+# 7. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
@@ -372,7 +360,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 10. GRAPHIQUE
+# 8. GRAPHIQUE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
@@ -407,13 +395,13 @@ fig.update_layout(
 st.plotly_chart(fig, width='stretch')
 
 # --------------------------------------------------------------------
-# 11. INTERPRÉTATION IA
+# 9. INTERPRÉTATION IA
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
-st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
+st.markdown('<div class="ia-box">' + interpreter_resultats(df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 12. TÉLÉCHARGEMENT
+# 10. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
