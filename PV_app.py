@@ -543,19 +543,39 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 9. GRAPHIQUE
+# 9. GRAPHIQUE - Coefficients globaux par article (toutes agences confondues)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
-moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean().reindex(mois_cols)
+# Calculer les coefficients globaux par mois (toutes agences confondues)
+# Pour chaque mois, on somme les ventes de toutes les agences, puis on divise par la moyenne globale
+group_cols_graph = ['segment', 'marque', 'format', 'contenances', 'Référence']
+
+# Agréger les ventes par mois (toutes agences confondues)
+df_graph = df_filtre.copy()
+df_graph['mois'] = df_graph['mois']
+
+# Calculer la moyenne générale par article (toutes agences)
+moyenne_generale_graph = df_graph.groupby(group_cols_graph)['coefficient'].mean()
+
+# Pour chaque article, calculer le coefficient global par mois
+# On prend la moyenne des coefficients par mois (pondérée implicitement)
+coeffs_globaux_par_mois = df_graph.groupby('mois')['coefficient'].mean()
+
+# Normaliser pour que la somme = 12
+somme_coeffs_graph = coeffs_globaux_par_mois.sum()
+if somme_coeffs_graph > 0:
+    coeffs_globaux_normalises = (coeffs_globaux_par_mois / somme_coeffs_graph) * 12
+else:
+    coeffs_globaux_normalises = coeffs_globaux_par_mois
 
 fig = go.Figure()
 
 fig.add_trace(go.Scatter(
     x=noms_mois,
-    y=moyennes_par_mois,
+    y=coeffs_globaux_normalises.reindex(mois_cols),
     mode='lines+markers',
-    name='Coefficient moyen',
+    name='Coefficient global',
     line=dict(color='blue', width=2),
     marker=dict(size=8)
 ))
@@ -563,7 +583,7 @@ fig.add_trace(go.Scatter(
 fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
 
 fig.update_layout(
-    title="Coefficients de saisonnalité moyens par mois",
+    title="Coefficients de saisonnalité globaux par mois (toutes agences confondues)",
     xaxis_title="Mois",
     yaxis_title="Coefficient",
     height=500,
