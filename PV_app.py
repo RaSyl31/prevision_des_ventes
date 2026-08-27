@@ -18,17 +18,73 @@ st.markdown("""
 <style>
     .stApp { background-color: #F0F2F6; }
     .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable, label { color: #000000; }
-    h1 { font-size: 2.5rem !important; margin-top: 0px !important; margin-bottom: 0px !important; padding-top: 0px !important; color: #000000; }
+    
+    /* Titres sur fond rouge */
+    .titre-rouge {
+        background-color: #CC0000;
+        color: white !important;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        display: block;
+        margin: 10px 0;
+    }
+    
+    h1, h2, h3 {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
     .stDataFrame { width: 100%; border: 1px solid #CCCCCC; }
     div[data-testid="stDataFrame"] { height: 600px !important; }
     .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
     .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
+    
     .ia-box {
-        background-color: #E8F5E9;
-        border-left: 5px solid #4CAF50;
-        padding: 15px;
+        background-color: #FFF3E0;
+        border-left: 5px solid #FF9800;
+        padding: 20px;
         border-radius: 5px;
         margin: 10px 0;
+    }
+    
+    .ia-box h4 {
+        color: #E65100;
+        margin-bottom: 10px;
+    }
+    
+    .ia-section {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: white;
+        border-radius: 5px;
+        border: 1px solid #FFE0B2;
+    }
+    
+    .ia-highlight {
+        background-color: #FFF9C4;
+        padding: 5px 10px;
+        border-radius: 3px;
+        display: inline-block;
+        margin: 2px;
+    }
+    
+    .ia-warning {
+        background-color: #FFEBEE;
+        padding: 5px 10px;
+        border-radius: 3px;
+        display: inline-block;
+        margin: 2px;
+        color: #C62828;
+    }
+    
+    .ia-success {
+        background-color: #E8F5E9;
+        padding: 5px 10px;
+        border-radius: 3px;
+        display: inline-block;
+        margin: 2px;
+        color: #2E7D32;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -291,54 +347,124 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 4. FONCTION D'INTERPRÉTATION IA
+# 4. FONCTION D'INTERPRÉTATION IA AVANCÉE (sans Ressources Humaines)
 # --------------------------------------------------------------------
-def interpreter_resultats(df_coefficients, df_filtre):
+def interpreter_resultats_avance(df_coefficients, df_filtre):
     """
-    Fonction d'interprétation intelligente des coefficients de saisonnalité.
+    Fonction d'interprétation intelligente avancée des coefficients de saisonnalité.
     """
     if df_filtre.empty:
         return "Aucune donnée à interpréter."
     
     interpretations = []
-    
-    # Analyse globale
-    moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean()
-    mois_forts = moyennes_par_mois[moyennes_par_mois > 1.1].index.tolist()
-    mois_faibles = moyennes_par_mois[moyennes_par_mois < 0.9].index.tolist()
-    
     noms_mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
     
-    # Interprétation globale
+    # --------------------------------------------------------------------
+    # 1. ANALYSE GLOBALE
+    # --------------------------------------------------------------------
+    moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean()
+    mois_tres_forts = moyennes_par_mois[moyennes_par_mois > 1.2].index.tolist()
+    mois_forts = moyennes_par_mois[(moyennes_par_mois > 1.05) & (moyennes_par_mois <= 1.2)].index.tolist()
+    mois_normaux = moyennes_par_mois[(moyennes_par_mois >= 0.95) & (moyennes_par_mois <= 1.05)].index.tolist()
+    mois_faibles = moyennes_par_mois[(moyennes_par_mois >= 0.8) & (moyennes_par_mois < 0.95)].index.tolist()
+    mois_tres_faibles = moyennes_par_mois[moyennes_par_mois < 0.8].index.tolist()
+    
+    interpretations.append("### 📊 Analyse Globale de la Saisonnalité")
+    
+    if mois_tres_forts:
+        interpretations.append(f"🔴 **Pics majeurs** : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
+        interpretations.append(f"   → Ces mois nécessitent une capacité de stockage et logistique maximale")
+    
     if mois_forts:
-        mois_forts_noms = [noms_mois[m-1] for m in mois_forts]
-        interpretations.append(f"📈 **Mois de forte activité** : {', '.join(mois_forts_noms)}")
+        interpretations.append(f"🟠 **Mois dynamiques** : {', '.join([noms_mois[m-1] for m in mois_forts])}")
+    
+    if mois_normaux:
+        interpretations.append(f"🟢 **Mois stables** : {', '.join([noms_mois[m-1] for m in mois_normaux])}")
     
     if mois_faibles:
-        mois_faibles_noms = [noms_mois[m-1] for m in mois_faibles]
-        interpretations.append(f"📉 **Mois de faible activité** : {', '.join(mois_faibles_noms)}")
+        interpretations.append(f"🟡 **Mois calmes** : {', '.join([noms_mois[m-1] for m in mois_faibles])}")
     
-    # Analyse par segment
-    for segment in df_filtre['segment'].unique():
+    if mois_tres_faibles:
+        interpretations.append(f"🔵 **Creux majeurs** : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
+        interpretations.append(f"   → Période propice pour la maintenance, les inventaires ou les promotions")
+    
+    # --------------------------------------------------------------------
+    # 2. ANALYSE PAR SEGMENT
+    # --------------------------------------------------------------------
+    interpretations.append("\n### 🏭 Analyse par Segment")
+    
+    for segment in sorted(df_filtre['segment'].unique()):
         df_seg = df_filtre[df_filtre['segment'] == segment]
         moy_seg = df_seg.groupby('mois')['coefficient'].mean()
         pic = moy_seg.idxmax()
         creux = moy_seg.idxmin()
-        interpretations.append(f"🏭 **{segment}** : Pic en {noms_mois[pic-1]} (coef {moy_seg[pic]:.2f}), Creux en {noms_mois[creux-1]} (coef {moy_seg[creux]:.2f})")
+        amplitude = moy_seg.max() - moy_seg.min()
+        
+        interpretations.append(f"**{segment}** :")
+        interpretations.append(f"   - Pic : {noms_mois[pic-1]} (coef {moy_seg[pic]:.2f})")
+        interpretations.append(f"   - Creux : {noms_mois[creux-1]} (coef {moy_seg[creux]:.2f})")
+        interpretations.append(f"   - Amplitude saisonnière : {amplitude:.2f}")
+        
+        if amplitude > 1.5:
+            interpretations.append(f"   - ⚠️ Forte saisonnalité : prévoir une gestion flexible des stocks")
+        elif amplitude > 0.5:
+            interpretations.append(f"   - Saisonnalité modérée : planification standard suffisante")
+        else:
+            interpretations.append(f"   - Faible saisonnalité : demande relativement stable")
     
-    # Analyse des articles les plus saisonniers
-    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False)
-    if len(variabilite) > 0:
-        article_top = variabilite.index[0]
-        interpretations.append(f"🔍 **Article le plus saisonnier** : {article_top}")
+    # --------------------------------------------------------------------
+    # 3. ANALYSE PAR MARQUE
+    # --------------------------------------------------------------------
+    interpretations.append("\n### 🏷️ Analyse par Marque")
     
-    # Recommandations
-    interpretations.append("\n💡 **Recommandations** :")
-    if mois_forts:
-        interpretations.append(f"- Prévoir des stocks plus importants pour les mois de forte activité")
-    if mois_faibles:
-        interpretations.append(f"- Réduire les commandes pendant les mois de faible activité")
+    for marque in sorted(df_filtre['marque'].unique()):
+        df_marque = df_filtre[df_filtre['marque'] == marque]
+        moy_marque = df_marque.groupby('mois')['coefficient'].mean()
+        pic = moy_marque.idxmax()
+        
+        taux_variation = (moy_marque.max() - moy_marque.min()) / moy_marque.min() * 100 if moy_marque.min() > 0 else 0
+        
+        interpretations.append(f"**{marque}** : Pic en {noms_mois[pic-1]}, Variation saisonnière de {taux_variation:.0f}%")
+    
+    # --------------------------------------------------------------------
+    # 4. ARTICLES LES PLUS SAISONNIERS
+    # --------------------------------------------------------------------
+    interpretations.append("\n### 🔍 Articles les Plus Saisonniers")
+    
+    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False).head(3)
+    
+    for i, (article, std) in enumerate(variabilite.items(), 1):
+        df_article = df_filtre[df_filtre['Référence'] == article]
+        moy_article = df_article.groupby('mois')['coefficient'].mean()
+        pic = moy_article.idxmax()
+        creux = moy_article.idxmin()
+        
+        interpretations.append(f"{i}. **{article}** : Pic en {noms_mois[pic-1]}, Creux en {noms_mois[creux-1]}")
+    
+    # --------------------------------------------------------------------
+    # 5. RECOMMANDATIONS STRATÉGIQUES (sans RH)
+    # --------------------------------------------------------------------
+    interpretations.append("\n### 💡 Recommandations Stratégiques")
+    
+    # Gestion des stocks
+    interpretations.append("**📦 Gestion des Stocks :**")
+    if mois_tres_forts:
+        interpretations.append(f"   - Augmenter les stocks de sécurité de 20-30% avant : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
+    if mois_tres_faibles:
+        interpretations.append(f"   - Réduire les commandes de 15-20% pendant : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
+    
+    # Marketing
+    interpretations.append("**📣 Actions Marketing :**")
+    if mois_tres_faibles:
+        interpretations.append(f"   - Lancer des promotions pour stimuler la demande en : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
+    if mois_tres_forts:
+        interpretations.append(f"   - Capitaliser sur la demande naturelle en : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
+    
+    # Trésorerie
+    interpretations.append("**💰 Gestion de Trésorerie :**")
+    interpretations.append("   - Prévoir des besoins en fonds de roulement plus élevés pendant les pics")
+    interpretations.append("   - Optimiser les délais de paiement fournisseurs selon la saisonnalité")
     
     return "\n".join(interpretations)
 
@@ -425,7 +551,7 @@ def charger_et_calculer(file_bytes, filename):
 # --------------------------------------------------------------------
 # 6. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
-st.title("📊 Coefficients de Saisonnalité par Article et Agence")
+st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Choisissez le fichier historique (Excel ou CSV)", type=["xlsx", "csv"])
 
@@ -478,7 +604,7 @@ if df_filtre.empty:
 # --------------------------------------------------------------------
 # 8. TABLEAU PIVOT
 # --------------------------------------------------------------------
-st.subheader("Coefficients de saisonnalité mensuels")
+st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
 pivot = df_filtre.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
@@ -500,7 +626,7 @@ st.dataframe(pivot, use_container_width=True, height=600)
 # --------------------------------------------------------------------
 # 9. GRAPHIQUE
 # --------------------------------------------------------------------
-st.subheader("📈 Variation mensuelle des coefficients")
+st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
 moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean().reindex(mois_cols)
 
@@ -534,7 +660,7 @@ st.plotly_chart(fig, use_container_width=True)
 # 10. INTERPRÉTATION IA (en bas du graphique)
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
-st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
+st.markdown('<div class="ia-box">' + interpreter_resultats_avance(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
 # 11. TÉLÉCHARGEMENT
