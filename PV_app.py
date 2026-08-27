@@ -4,6 +4,7 @@ import numpy as np
 import re
 from datetime import datetime
 from io import BytesIO
+import plotly.graph_objects as go
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -19,7 +20,7 @@ st.markdown("""
     .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable, label { color: #000000; }
     h1 { font-size: 2.5rem !important; margin-top: 0px !important; margin-bottom: 0px !important; padding-top: 0px !important; color: #000000; }
     .stDataFrame { width: 100%; border: 1px solid #CCCCCC; }
-    div[data-testid="stDataFrame"] { height: 800px !important; }
+    div[data-testid="stDataFrame"] { height: 600px !important; }
     .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
     .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
 </style>
@@ -332,13 +333,6 @@ df = df[df['agence'].isin(AGENCES)]
 # 5. CALCUL DES COEFFICIENTS SAISONNIERS (somme exacte = 12)
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df):
-    """
-    Méthode :
-    1. Moyenne générale = moyenne des ventes sur 24 mois (2024-2025)
-    2. Moyenne mensuelle = (ventes mois 2024 + ventes mois 2025) / 2
-    3. Coefficient brut = Moyenne mensuelle / Moyenne générale
-    4. Normalisation : somme des 12 coefficients = 12 exactement
-    """
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
     
     if df_periode.empty:
@@ -350,13 +344,11 @@ def calculer_coefficients_saisonniers(df):
     for keys, group in df_periode.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
         
-        # Moyenne générale sur 24 mois
         moyenne_generale = group['ventes hecto'].mean()
         
         if moyenne_generale <= 0:
             continue
         
-        # Calculer les coefficients bruts pour chaque mois
         coeffs_bruts = {}
         for mois in range(1, 13):
             ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
@@ -366,15 +358,12 @@ def calculer_coefficients_saisonniers(df):
                 moyenne_mensuelle = 0
             coeffs_bruts[mois] = moyenne_mensuelle / moyenne_generale
         
-        # Normaliser pour que la somme = 12 (avec précision)
         somme_coeffs = sum(coeffs_bruts.values())
         if somme_coeffs > 0:
-            # Calculer les coefficients normalisés
             coeffs_normalises = {}
             for mois in range(1, 13):
                 coeffs_normalises[mois] = (coeffs_bruts[mois] / somme_coeffs) * 12
             
-            # Arrondir à 2 décimales
             coeffs_arrondis = {}
             somme_arrondie = 0
             for mois in range(1, 12):
@@ -382,13 +371,10 @@ def calculer_coefficients_saisonniers(df):
                 coeffs_arrondis[mois] = coeff
                 somme_arrondie += coeff
             
-            # Le dernier mois (décembre) compense pour que la somme = 12 exactement
             coeffs_arrondis[12] = round(12 - somme_arrondie, 2)
             
-            # Vérification finale
             somme_finale = sum(coeffs_arrondis.values())
             if abs(somme_finale - 12) > 0.01:
-                # Ajuster le dernier mois si nécessaire
                 coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
             
             for mois in range(1, 13):
@@ -412,41 +398,36 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. FILTRES DANS LA BARRE LATÉRALE
+# 6. FILTRES DANS LA BARRE LATÉRALE (ordre : Article, Marque, Segment)
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Agence
-agences_options = sorted(df_coefficients['agence'].unique())
-selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
+# Article (premier filtre)
+articles_options = sorted(df_coefficients['Référence'].unique())
+selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Segment
-segments_options = sorted(df_coefficients['segment'].unique())
-selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-
-# Marque (filtrée selon les segments sélectionnés)
-if selected_segments:
-    marques_options = sorted(df_coefficients[df_coefficients['segment'].isin(selected_segments)]['marque'].unique())
+# Marque (filtrée selon les articles sélectionnés)
+if selected_articles:
+    marques_options = sorted(df_coefficients[df_coefficients['Référence'].isin(selected_articles)]['marque'].unique())
 else:
     marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Article (filtré selon segments et marques sélectionnés)
-if selected_segments and selected_marques:
-    articles_options = sorted(df_coefficients[
-        (df_coefficients['segment'].isin(selected_segments)) & 
+# Segment (filtré selon articles et marques sélectionnés)
+if selected_articles and selected_marques:
+    segments_options = sorted(df_coefficients[
+        (df_coefficients['Référence'].isin(selected_articles)) & 
         (df_coefficients['marque'].isin(selected_marques))
-    ]['Référence'].unique())
+    ]['segment'].unique())
 else:
-    articles_options = sorted(df_coefficients['Référence'].unique())
-selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
+    segments_options = sorted(df_coefficients['segment'].unique())
+selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
 # Appliquer les filtres
 df_filtre = df_coefficients[
-    (df_coefficients['agence'].isin(selected_agences)) &
-    (df_coefficients['segment'].isin(selected_segments)) &
+    (df_coefficients['Référence'].isin(selected_articles)) &
     (df_coefficients['marque'].isin(selected_marques)) &
-    (df_coefficients['Référence'].isin(selected_articles))
+    (df_coefficients['segment'].isin(selected_segments))
 ]
 
 if df_filtre.empty:
@@ -471,13 +452,47 @@ pivot = pivot.reindex(columns=mois_cols)
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
 
-# Ajouter colonne Total pour vérification
 pivot['Total'] = pivot.sum(axis=1)
 
-st.dataframe(pivot, use_container_width=True, height=800)
+st.dataframe(pivot, use_container_width=True, height=600)
 
 # --------------------------------------------------------------------
-# 8. TÉLÉCHARGEMENT
+# 8. GRAPHIQUE DE VARIATION MENSUELLE
+# --------------------------------------------------------------------
+st.subheader("📈 Variation mensuelle des coefficients")
+
+# Calculer la moyenne des coefficients par mois pour toutes les lignes filtrées
+moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean().reindex(mois_cols)
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=noms_mois,
+    y=moyennes_par_mois,
+    mode='lines+markers',
+    name='Coefficient moyen',
+    line=dict(color='blue', width=2),
+    marker=dict(size=8)
+))
+
+# Ajouter une ligne de référence à 1.0
+fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
+
+fig.update_layout(
+    title="Coefficients de saisonnalité moyens par mois",
+    xaxis_title="Mois",
+    yaxis_title="Coefficient",
+    height=500,
+    showlegend=True,
+    plot_bgcolor='white',
+    xaxis=dict(showgrid=True, gridcolor='lightgray'),
+    yaxis=dict(showgrid=True, gridcolor='lightgray')
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# --------------------------------------------------------------------
+# 9. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
