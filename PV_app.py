@@ -280,10 +280,6 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # Afficher un debug des colonnes
-    st.write("Colonnes trouvées :", list(df_raw.columns))
-    st.write("Nombre de lignes :", len(df_raw))
-    
     # Vérifier les colonnes requises
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
@@ -303,8 +299,6 @@ def charger_et_calculer(file_bytes, filename):
     df = df[df['Agences'].notna()]
     df = df[~df['Agences'].astype(str).str.contains('Total', case=False, na=False)]
     
-    st.write("Après filtrage Total/vide :", len(df), "lignes")
-    
     # Renommer les colonnes
     df.rename(columns={
         'Segments': 'segment',
@@ -316,7 +310,7 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir Année
+    # Convertir Année directement en int (c'est déjà un nombre)
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
@@ -324,7 +318,7 @@ def charger_et_calculer(file_bytes, filename):
     # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    # Extraire le mois : prendre le premier élément avant l'espace
+    # Extraire le mois depuis "Mois année" (ex: "01 2024" -> 1)
     df['mois_num'] = df['Mois année'].astype(str).str.strip().str.split(' ').str[0]
     df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
@@ -333,29 +327,33 @@ def charger_et_calculer(file_bytes, filename):
     # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
-    st.write("Années uniques :", sorted(df['Année'].unique()))
-    st.write("Mois uniques :", sorted(df['mois_num'].unique()))
-    st.write("Agences uniques :", df['agence'].unique())
-    st.write("Articles uniques :", len(df['Référence'].unique()))
-    
     # Filtrer agences valides
     df = df[df['agence'].isin(AGENCES)]
-    st.write("Après filtre agences :", len(df), "lignes")
     
     # Filtrer articles actifs
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
-    st.write("Après filtre articles actifs :", len(df), "lignes")
     
-    # Filtrer période 2024-2025
-    df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)]
-    st.write("Après filtre période 2024-2025 :", len(df_periode), "lignes")
+    # Utiliser les deux années les plus récentes disponibles
+    annees_disponibles = sorted(df['Année'].unique())
+    if len(annees_disponibles) >= 2:
+        annee_fin = annees_disponibles[-1]
+        annee_debut = annees_disponibles[-2]
+    elif len(annees_disponibles) == 1:
+        annee_debut = annees_disponibles[0]
+        annee_fin = annees_disponibles[0]
+    else:
+        return pd.DataFrame()
+    
+    st.info(f"Années utilisées pour le calcul : {annee_debut} - {annee_fin}")
+    
+    df_periode = df[(df['Année'] >= annee_debut) & (df['Année'] <= annee_fin)]
     
     if df_periode.empty:
         return pd.DataFrame()
     
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     moyenne_generale = df_periode.groupby(group_cols)['ventes_hecto'].mean()
-    moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['date'].dt.month])['ventes_hecto'].mean()
+    moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['mois_num']])['ventes_hecto'].mean()
     
     resultats = []
     
@@ -395,8 +393,6 @@ def charger_et_calculer(file_bytes, filename):
                     'coefficient': coeffs_arrondis[mois]
                 })
     
-    st.write("Résultats :", len(resultats), "lignes")
-    
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
@@ -416,7 +412,7 @@ filename = uploaded_file.name
 df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
-    st.warning("Aucune donnée sur la période 2024-2025 pour calculer les coefficients.")
+    st.warning("Aucune donnée disponible pour calculer les coefficients.")
     st.stop()
 
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
@@ -524,6 +520,6 @@ csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
     label="Télécharger les coefficients (CSV)",
     data=csv,
-    file_name="coefficients_saisonnalite_2024_2025.csv",
+    file_name="coefficients_saisonnalite.csv",
     mime="text/csv"
 )
