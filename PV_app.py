@@ -456,7 +456,7 @@ if df_filtre.empty:
 # --------------------------------------------------------------------
 # 7. TABLEAU PIVOT
 # --------------------------------------------------------------------
-st.subheader("Coefficients de saisonnalité mensuels (somme = 12)")
+st.subheader("Coefficients de saisonnalité mensuels")
 
 pivot = df_filtre.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
