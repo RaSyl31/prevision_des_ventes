@@ -329,14 +329,14 @@ df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 df = df[df['agence'].isin(AGENCES)]
 
 # --------------------------------------------------------------------
-# 5. CALCUL DES COEFFICIENTS SAISONNIERS (méthode exacte)
+# 5. CALCUL DES COEFFICIENTS SAISONNIERS (méthode classique)
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df):
     """
-    Méthode :
-    1. Pour chaque article X et agence A, calculer la moyenne des ventes du mois M (2024 + 2025)
-    2. Calculer la moyenne des 12 moyennes (Z)
-    3. Coefficient du mois M = Moyenne du mois M / Z
+    Méthode classique :
+    1. Moyenne générale = Total des ventes / 24 mois (pour 2024-2025)
+    2. Moyenne mensuelle = (ventes mois 2024 + ventes mois 2025) / 2
+    3. Coefficient du mois = Moyenne mensuelle / Moyenne générale
     """
     # Filtrer sur 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
@@ -351,24 +351,23 @@ def calculer_coefficients_saisonniers(df):
     for keys, group in df_periode.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
         
-        # Calculer la moyenne des ventes pour chaque mois (2024 + 2025)
-        moyennes_par_mois = {}
-        for mois in range(1, 13):
-            ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
-            if len(ventes_mois) > 0:
-                moyennes_par_mois[mois] = ventes_mois.mean()
-            else:
-                moyennes_par_mois[mois] = 0
+        # Moyenne générale = moyenne de toutes les ventes mensuelles sur 24 mois
+        moyenne_generale = group['ventes hecto'].mean()
         
-        # Calculer la moyenne des 12 moyennes (Z)
-        moyenne_des_moyennes = np.mean(list(moyennes_par_mois.values()))
-        
-        if moyenne_des_moyennes <= 0:
+        if moyenne_generale <= 0:
             continue
         
-        # Calculer les coefficients
+        # Calculer la moyenne mensuelle pour chaque mois
         for mois in range(1, 13):
-            coefficient = moyennes_par_mois[mois] / moyenne_des_moyennes
+            ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
+            
+            if len(ventes_mois) > 0:
+                moyenne_mensuelle = ventes_mois.mean()
+            else:
+                moyenne_mensuelle = 0
+            
+            coefficient = moyenne_mensuelle / moyenne_generale
+            
             coefficients.append({
                 'segment': segment,
                 'marque': marque,
