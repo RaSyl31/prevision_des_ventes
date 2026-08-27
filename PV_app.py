@@ -4,7 +4,6 @@ import numpy as np
 import re
 from datetime import datetime
 from io import BytesIO
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -32,7 +31,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES ARTICLES ACTIFS (segment, Marque, Article)
+# 1. LISTE DES ARTICLES ACTIFS
 # --------------------------------------------------------------------
 ACTIVE_ARTICLES = [
     ("ALCOMIX", "Booster", "Booster Appel-Mix 50CL VER"),
@@ -387,7 +386,6 @@ def traiter_fichier(file_bytes, filename):
     if not all(col in df_raw.columns for col in required_cols):
         raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
 
-    # Filtrer les lignes de détail : Référence non vide et ne contenant pas "Total"
     df = df_raw[
         df_raw['Référence'].notna() &
         ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
@@ -395,26 +393,15 @@ def traiter_fichier(file_bytes, filename):
         ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
     ].copy()
 
-    # Mapper la référence vers l'article standardisé
     df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
-
-    # Convertir la colonne Année en numérique
     df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
-
-    # Convertir la colonne "ventes hecto" en numérique
     df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-
-    # Créer la date
     df['mois_num'] = df['Mois'].apply(parse_mois)
     df = df[df['mois_num'].notna()]
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-
-    # Extraire la contenance en cl
     df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
-
-    # Renommer les colonnes
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
     # Filtrer pour ne garder que les articles actifs présents
@@ -467,59 +454,136 @@ def traiter_fichier(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE PRÉVISION HOLT-WINTERS
+# 6. CALCUL DES COEFFICIENTS SAISONNIERS PAR ARTICLE-AGENCE
 # --------------------------------------------------------------------
-def holt_winters_forecast(serie, steps=60, seasonal_periods=12):
-    """Applique Holt-Winters (additif) et retourne les prévisions."""
-    if len(serie) < 2*seasonal_periods:
-        # Pas assez de données -> on utilise une méthode naïve (moyenne mensuelle)
-        return pd.Series(np.repeat(serie.mean(), steps))
+def calculer_coefficients_saisonniers(df_hist):
+    """
+    Calcule les coefficients saisonniers mensuels pour chaque combinaison article-agence.
+    Retourne un DataFrame avec les colonnes : segment, marque, format, contenances, Référence, agence, mois, coefficient.
+    """
+    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+    coefficients = []
 
-    model = ExponentialSmoothing(
-        serie,
-        trend="add",
-        seasonal="add",
-        seasonal_periods=seasonal_periods,
-        initialization_method="estimated"
-    )
-    fitted = model.fit(optimized=True)
-    forecast = fitted.forecast(steps)
-    return forecast
+    for keys, group in df_hist.groupby(group_cols):
+        segment, marque, format_, contenances, reference, agence = keys
+
+        # Agréger par date (en cas de doublons)
+        serie = group.groupby('date')['valeur'].sum().sort_index()
+
+        if len(serie) < 12:
+            # Pas assez de données -> coefficients uniformes
+            for mois in range(1, 13):
+                coefficients.append({
+                    'segment': segment,
+                    'marque': marque,
+                    'format': format_,
+                    'contenances': contenances,
+                    'Référence': reference,
+                    'agence': agence,
+                    'mois': mois,
+                    'coefficient': 1.0
+                })
+            continue
+
+        # Moyenne par mois
+        moyennes_par_mois = serie.groupby(serie.index.month).mean()
+        moyenne_globale = serie.mean()
+
+        if moyenne_globale == 0:
+            # Si moyenne nulle, coefficients uniformes
+            for mois in range(1, 13):
+                coefficients.append({
+                    'segment': segment,
+                    'marque': marque,
+                    'format': format_,
+                    'contenances': contenances,
+                    'Référence': reference,
+                    'agence': agence,
+                    'mois': mois,
+                    'coefficient': 1.0
+                })
+        else:
+            # Coefficient mensuel = moyenne du mois / moyenne globale
+            for mois in range(1, 13):
+                coef = moyennes_par_mois.get(mois, 0.0) / moyenne_globale
+                coefficients.append({
+                    'segment': segment,
+                    'marque': marque,
+                    'format': format_,
+                    'contenances': contenances,
+                    'Référence': reference,
+                    'agence': agence,
+                    'mois': mois,
+                    'coefficient': coef
+                })
+
+    return pd.DataFrame(coefficients)
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DES PRÉVISIONS POUR CHAQUE COMBINAISON ARTICLE-AGENCE
+# 7. GÉNÉRATION DES PRÉVISIONS AVEC COEFFICIENTS SAISONNIERS ET CAGR
 # --------------------------------------------------------------------
-@st.cache_data
-def generer_previsions(df_hist, annees_prev):
+def generer_previsions_saisonnalite(df_hist, df_coefficients, annees_prev):
+    """
+    Génère les prévisions mensuelles en utilisant les coefficients saisonniers et le CAGR.
+    """
     previsions = []
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
 
     for keys, group in df_hist.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
 
-        # Agréger par mois (en cas de doublons, on somme)
+        # Récupérer les coefficients saisonniers pour cette combinaison
+        coefs = df_coefficients[
+            (df_coefficients['segment'] == segment) &
+            (df_coefficients['marque'] == marque) &
+            (df_coefficients['format'] == format_) &
+            (df_coefficients['contenances'] == contenances) &
+            (df_coefficients['Référence'] == reference) &
+            (df_coefficients['agence'] == agence)
+        ].set_index('mois')['coefficient'].to_dict()
+
+        if not coefs:
+            coefs = {i: 1.0 for i in range(1, 13)}
+
+        # Série historique agrégée par mois
         serie = group.groupby('date')['valeur'].sum().sort_index()
+        if len(serie) == 0:
+            continue
 
-        # Rééchantillonner à fréquence mensuelle (remplit les mois manquants avec 0)
-        serie = serie.asfreq('MS', fill_value=0)
+        # Calcul du CAGR sur les 3 dernières années
+        dernier_mois = serie.index.max()
+        date_debut = dernier_mois - pd.DateOffset(years=3)
+        serie_recente = serie[serie.index >= date_debut]
 
-        # Prévision Holt-Winters (60 mois)
-        steps = len(annees_prev) * 12
-        try:
-            forecast = holt_winters_forecast(serie, steps=steps)
-        except Exception:
-            # En cas d'échec, on utilise la moyenne mobile
-            forecast = pd.Series(np.repeat(serie.mean(), steps))
+        if len(serie_recente) >= 12:
+            # Agréger par année pour le CAGR
+            annuel = serie_recente.resample('YE').sum()
+            if len(annuel) >= 2:
+                valeur_initiale = annuel.iloc[0]
+                valeur_finale = annuel.iloc[-1]
+                nb_annees = len(annuel) - 1
+                if valeur_initiale > 0 and valeur_finale > 0:
+                    cagr = (valeur_finale / valeur_initiale) ** (1 / nb_annees) - 1
+                else:
+                    cagr = 0
+                somme_derniere_annee = annuel.iloc[-1]
+            else:
+                cagr = 0
+                somme_derniere_annee = serie_recente.sum()
+        else:
+            # Utiliser toute la série
+            cagr = 0
+            somme_derniere_annee = serie.sum()
 
-        # Convertir en tableau numpy pour accès par position
-        forecast_values = forecast.to_numpy()
-
-        # Construire les dates de prévision
+        # Générer les prévisions
         for i, annee in enumerate(annees_prev):
+            nb_annees_projection = i + 1
+            somme_annuelle_prevue = somme_derniere_annee * (1 + cagr) ** nb_annees_projection
+
             for mois in range(1, 13):
                 date_prev = pd.Timestamp(year=annee, month=mois, day=1)
-                idx = i * 12 + (mois - 1)
-                valeur = forecast_values[idx]
+                coef = coefs.get(mois, 1.0)
+                valeur_mensuelle = (somme_annuelle_prevue / 12) * coef
                 previsions.append({
                     'date': date_prev,
                     'segment': segment,
@@ -528,7 +592,7 @@ def generer_previsions(df_hist, annees_prev):
                     'contenances': contenances,
                     'Référence': reference,
                     'agence': agence,
-                    'valeur': valeur
+                    'valeur': valeur_mensuelle
                 })
 
     return pd.DataFrame(previsions)
@@ -536,7 +600,7 @@ def generer_previsions(df_hist, annees_prev):
 # --------------------------------------------------------------------
 # 8. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
-st.title("📈 Analyse et Prévision des ventes (Holt-Winters)")
+st.title("📈 Analyse et Prévision des ventes (Saisonnalité + CAGR)")
 
 uploaded_file = st.file_uploader("Choisissez le fichier historique (Excel ou CSV)", type=["xlsx", "csv"])
 
@@ -565,15 +629,19 @@ else:
     df['valeur'] = df['valeur'].round(0)
 
 # --------------------------------------------------------------------
-# 10. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# 10. CALCUL DES COEFFICIENTS SAISONNIERS
 # --------------------------------------------------------------------
 df_hist = df[df['date'].dt.year <= 2026].copy()
-annees_prev = [2027, 2028, 2029, 2030, 2031]
-
-df_prev = generer_previsions(df_hist, annees_prev)
+df_coefficients = calculer_coefficients_saisonniers(df_hist)
 
 # --------------------------------------------------------------------
-# 11. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
+# 11. GÉNÉRATION DES PRÉVISIONS (2027-2031)
+# --------------------------------------------------------------------
+annees_prev = [2027, 2028, 2029, 2030, 2031]
+df_prev = generer_previsions_saisonnalite(df_hist, df_coefficients, annees_prev)
+
+# --------------------------------------------------------------------
+# 12. DERNIER RECOURS : MOYENNE GLOBALE SI TOUJOURS MANQUANT
 # --------------------------------------------------------------------
 moyenne_globale = df_hist['valeur'].mean() if not df_hist.empty else 0
 articles_prev = set(df_prev['Référence'].unique())
@@ -586,12 +654,6 @@ if articles_manquants:
         marque = info['marque_actif']
         format_art = extraire_format(article)
         contenance = extraire_contenance_cl(article)
-        # Moyenne du segment pour la saisonnalité
-        df_segment = df_hist[df_hist['segment'] == seg]
-        if not df_segment.empty:
-            moyenne_segment = df_segment['valeur'].mean()
-        else:
-            moyenne_segment = moyenne_globale
         for agence in AGENCES:
             for annee in annees_prev:
                 for mois in range(1, 13):
@@ -603,13 +665,13 @@ if articles_manquants:
                         'contenances': '',
                         'Référence': article,
                         'agence': agence,
-                        'valeur': moyenne_segment
+                        'valeur': moyenne_globale
                     })
     if nouvelles_lignes:
         df_prev = pd.concat([df_prev, pd.DataFrame(nouvelles_lignes)], ignore_index=True)
 
 # --------------------------------------------------------------------
-# 12. FILTRES
+# 13. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres (sélection multiple)")
 
@@ -650,7 +712,7 @@ if mode_affichage == "Par mois":
     df_filtre = df_filtre[df_filtre['agence'].isin(selected_agences)]
 
 # --------------------------------------------------------------------
-# 13. TABLEAU CROISÉ DYNAMIQUE
+# 14. TABLEAU CROISÉ DYNAMIQUE
 # --------------------------------------------------------------------
 index_cols = ['segment', 'marque', 'format', 'contenances', 'Référence']
 
@@ -702,7 +764,7 @@ else:
     st.subheader("Prévisions par année (2027-2031)")
 
 # --------------------------------------------------------------------
-# 14. AFFICHAGE DU TABLEAU
+# 15. AFFICHAGE DU TABLEAU
 # --------------------------------------------------------------------
 pivot_reset = pivot.reset_index()
 pivot_reset.columns = [str(col) for col in pivot_reset.columns]
@@ -717,7 +779,7 @@ else:
 st.dataframe(pivot_reset, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 15. TÉLÉCHARGEMENT
+# 16. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot_reset.to_csv(index=False).encode('utf-8')
 st.download_button(
