@@ -318,20 +318,12 @@ def charger_et_calculer(file_bytes, filename):
     # Filtrer marques valides
     df = df[df['marque'].isin(MARQUES)]
     
-    # Utiliser les deux années les plus récentes
-    annees_disponibles = sorted(df['Année'].unique())
-    if len(annees_disponibles) >= 2:
-        annee_fin = annees_disponibles[-1]
-        annee_debut = annees_disponibles[-2]
-    elif len(annees_disponibles) == 1:
-        annee_debut = annees_disponibles[0]
-        annee_fin = annees_disponibles[0]
-    else:
-        return pd.DataFrame()
+    # FORCER les années 2024-2025
+    annees_voulues = [2024, 2025]
+    df_periode = df[df['Année'].isin(annees_voulues)]
     
-    st.info(f"Années utilisées : {annee_debut} - {annee_fin}")
-    
-    df_periode = df[(df['Année'] >= annee_debut) & (df['Année'] <= annee_fin)]
+    st.info(f"Années utilisées : 2024 - 2025")
+    st.info(f"Lignes trouvées pour 2024-2025 : {len(df_periode)}")
     
     if df_periode.empty:
         return pd.DataFrame()
@@ -397,7 +389,7 @@ filename = uploaded_file.name
 df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
-    st.warning("Aucune donnée disponible pour calculer les coefficients.")
+    st.warning("Aucune donnée pour les années 2024-2025.")
     st.stop()
 
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
@@ -407,15 +399,15 @@ st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Agence (premier filtre)
+# Agence
 agences_options = sorted(df_coefficients['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
-# Article (deuxième filtre)
+# Article
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque (troisième filtre)
+# Marque
 marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
