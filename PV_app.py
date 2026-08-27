@@ -19,7 +19,6 @@ st.markdown("""
     .stApp { background-color: #F0F2F6; }
     .stMarkdown, .stText, .stCaption, .stDataFrame, .stTable, label { color: #000000; }
     
-    /* Titres sur fond rouge */
     .titre-rouge {
         background-color: #CC0000;
         color: white !important;
@@ -28,11 +27,6 @@ st.markdown("""
         font-weight: bold;
         display: block;
         margin: 10px 0;
-    }
-    
-    h1, h2, h3 {
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
     }
     
     .stDataFrame { width: 100%; border: 1px solid #CCCCCC; }
@@ -47,20 +41,15 @@ st.markdown("""
         border-radius: 5px;
         margin: 10px 0;
     }
-    
-    .ia-box h4 {
-        color: #E65100;
-        margin-bottom: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES AGENCES FINALES
+# 1. LISTE DES AGENCES
 # --------------------------------------------------------------------
 AGENCES = [
+    "00-",
     "01-Tanjombato",
-    "03-Diego",
     "03-Usine-Diego",
     "04-Tulear",
     "05-Fianarantsoa",
@@ -70,18 +59,140 @@ AGENCES = [
     "09-Tamatave",
     "11-Andranomahery",
     "12-Antsirabe",
-    "17-Antsohihy",
     "18-Ambanja",
     "19-Sambava",
     "21-Nosy-Be",
-    "21-NosyBe",
     "23-Morondava",
-    "24-Fort-Dauphin",
-    "24-Fort Dauphin"
+    "24-Fort-Dauphin"
 ]
 
 # --------------------------------------------------------------------
-# 2. FONCTIONS UTILITAIRES
+# 2. BASE DE RÉFÉRENCE DES ARTICLES ACTIFS (sans les lignes Total)
+# --------------------------------------------------------------------
+BASE_ARTICLES = [
+    # 1-BIERES
+    ("1-BIERES", "1-Queen s", "VER", "33cl", "Queen s 33 cl VER"),
+    ("1-BIERES", "1-Queen s", "VER", "65cl", "Queen s 65 cl VER"),
+    ("1-BIERES", "3-Fresh", "CAN", "33cl", "FRESH 33 cl CAN"),
+    ("1-BIERES", "3-Fresh", "CAN", "33cl", "FRESH 33 cl EXPORT CAN"),
+    ("1-BIERES", "3-Fresh", "VER", "33cl", "THB Fresh 33 cl VER"),
+    ("1-BIERES", "3-Fresh", "VER", "50cl", "THB Fresh 50 cl VER"),
+    ("1-BIERES", "3-Fresh", "VER", "65cl", "THB Fresh 65 cl VER"),
+    ("1-BIERES", "4-THB", "CAN", "33cl", "THB Pilsener 33 cl CAN"),
+    ("1-BIERES", "4-THB", "CAN", "50cl", "THB Pilsener 50 cl CAN"),
+    ("1-BIERES", "4-THB", "FUT", "2000cl", "THB Pilsener 20L Export FUT"),
+    ("1-BIERES", "4-THB", "FUT", "2000cl", "THB Pilsener 20L FUT"),
+    ("1-BIERES", "4-THB", "FUT", "3000cl", "THB Pilsener 30L Export FUT"),
+    ("1-BIERES", "4-THB", "FUT", "3000cl", "THB Pilsener 30L FUT"),
+    ("1-BIERES", "4-THB", "VER", "33cl", "THB Pilsener 33 cl VER"),
+    ("1-BIERES", "4-THB", "VER", "33cl", "THB Speciale NOEL 33 cl VER"),
+    ("1-BIERES", "4-THB", "VER", "50cl", "THB Pilsener 50 cl VER"),
+    ("1-BIERES", "4-THB", "VER", "65cl", "THB Pilsener 65 cl VER"),
+    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold 8 50 cl CAN"),
+    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold Blanche 50 cl CAN"),
+    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold Blonde 50 cl CAN"),
+    ("1-BIERES", "5-Gold", "FUT", "2000cl", "Gold Blanche 20L FUT"),
+    ("1-BIERES", "5-Gold", "FUT", "3000cl", "Gold Blanche 30L FUT"),
+    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Amigo 33cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Blanche 33cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Blonde 33 cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Rosee 33cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold 8 50 cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold Blanche 50 cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold Blonde 50 cl VER"),
+    ("1-BIERES", "5-Gold", "VER", "65cl", "Gold Blonde 65 cl VER"),
+    ("1-BIERES", "6-Beaufort", "CAN", "33cl", "Beaufort 33 cl CAN"),
+    ("1-BIERES", "6-Beaufort", "CAN", "50cl", "Beaufort 50 CL CAN"),
+    ("1-BIERES", "6-Beaufort", "VER", "33cl", "Beaufort 33CL VER"),
+    ("1-BIERES", "7-Autres bieres", "FUT", "2000cl", "THB Blanche 20L Export FUT"),
+    ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB 8% 50 cl VER"),
+    ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB Blanche 50 cl VER"),
+    # 2-BG
+    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Bonbon Anglais 33 cl CAN"),
+    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Grenadine 33 cl CAN"),
+    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Orange 33 cl CAN"),
+    ("2-BG", "1-Caprice", "FUT", "2000cl", "Caprice Bonbon Anglais 20L FUT"),
+    ("2-BG", "1-Caprice", "FUT", "2000cl", "Caprice Orange 20L FUT"),
+    ("2-BG", "1-Caprice", "FUT", "3000cl", "Caprice Bonbon Anglais 30L FUT"),
+    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Ananas 150 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Bonbon Anglais 150 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Grenadine 150 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Orange 150 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Pomme 150 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Bonbon Anglais 35 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Grenadine 35 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Orange 35 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Ananas 50 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Bonbon Anglais 50 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Grenadine 50 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Orange 50 cl PET"),
+    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Pomme 50 cl PET"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Ananas 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Bonbon Anglais 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Citron 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Grenadine 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Orange 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Pomme 100 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Ananas 30 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Bonbon Anglais 30 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Citron 30 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Grenadine 30 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Orange 30 cl VER"),
+    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Pomme 30 cl VER"),
+    ("2-BG", "1-XXL", "CAN", "33cl", "XXL 33 cl CAN"),
+    ("2-BG", "1-XXL", "PET", "35cl", "XXL 35cl PET"),
+    ("2-BG", "1-XXL", "VER", "30cl", "XXL 30cl BOB VER"),
+    ("2-BG", "1-XXL", "VER", "30cl", "XXL 30cl VER"),
+    ("2-BG", "2-FOSA", "CAN", "50cl", "FOSA 50 cl CAN"),
+    ("2-BG", "2-Tonic", "VER", "100cl", "Tonic 100 cl VER"),
+    ("2-BG", "2-Tonic", "VER", "30cl", "Tonic 30 cl VER"),
+    ("2-BG", "3-D jino", "PET", "125cl", "D Jino Cola 125cl PET"),
+    ("2-BG", "3-D jino", "PET", "125cl", "D Jino tropical 125cl PET"),
+    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Cola 35cl PET"),
+    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Limonady 35cl PET"),
+    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Tropical 35cl PET"),
+    ("2-BG", "4-Youzou", "PET", "150cl", "Youzou 150 cl PET"),
+    ("2-BG", "4-Youzou", "PET", "50cl", "Youzou 50cl PET"),
+    ("2-BG", "4-Youzou", "VER", "100cl", "Youzou 100 cl VER"),
+    ("2-BG", "4-Youzou", "VER", "30cl", "Youzou 30 cl VER"),
+    ("2-BG", "5-World Cola", "CAN", "33cl", "World Cola 33 cl CAN"),
+    ("2-BG", "5-World Cola", "FUT", "2000cl", "World Cola 20L FUT"),
+    ("2-BG", "5-World Cola", "PET", "150cl", "World Cola 150cl PET"),
+    ("2-BG", "5-World Cola", "PET", "35cl", "World Cola 35cl PET"),
+    ("2-BG", "5-World Cola", "PET", "50cl", "World Cola 50cl PET"),
+    ("2-BG", "5-World Cola", "VER", "100cl", "World Cola 100cl VER"),
+    ("2-BG", "5-World Cola", "VER", "100cl", "World Cola 100cl WOCO VER"),
+    ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl VER"),
+    ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl WOCO VER"),
+    # 3-EAUX
+    ("3-EAUX", "1-Cristalline", "PET", "100cl", "Cristalline 100 cl PET"),
+    ("3-EAUX", "1-Cristalline", "PET", "200cl", "Cristalline 200 cl PET"),
+    ("3-EAUX", "2-Eau vive", "PET", "150cl", "Eau vive 150 cl PET"),
+    ("3-EAUX", "2-Eau vive", "PET", "50cl", "Eau vive 50 cl PET"),
+    ("3-EAUX", "2-Eau vive", "VER", "50cl", "Eau vive 50 cl VER"),
+    ("3-EAUX", "3-Cristal", "PET", "150cl", "Cristal 150 cl PET"),
+    ("3-EAUX", "3-Cristal", "VER", "100cl", "Cristal 100 cl VER"),
+    ("3-EAUX", "3-Cristal", "VER", "30cl", "Cristal 30 cl VER"),
+    ("3-EAUX", "3-Cristal", "VER", "50cl", "Cristal 50 cl VER"),
+    # 5-ALCOMIX
+    ("5-ALCOMIX", "1-Booster", "PET", "35cl", "Booster Tornado 35CL PET"),
+    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Appel-Mix 50CL VER"),
+    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster CUBA LIBRE 50CL VER"),
+    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Tornado 50CL VER VER"),
+    ("5-ALCOMIX", "2-Alcomix Divers", "VER", "33cl", "Racines 33 cl VER"),
+    ("5-ALCOMIX", "2-Alcomix Divers", "VER", "50cl", "BOTA Fresh 50 cl VER"),
+    # 7-VIN
+    ("7-VIN", "Vin", "0cl", "50cl", "Valmont 50cl"),
+]
+
+# Convertir en DataFrame
+df_base_articles = pd.DataFrame(BASE_ARTICLES, columns=["segment", "marque", "format", "contenances", "Référence"])
+
+# Liste des articles actifs uniquement
+ARTICLES_ACTIFS = df_base_articles['Référence'].unique().tolist()
+
+# --------------------------------------------------------------------
+# 3. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
 def nettoyer_nombre(val):
     if isinstance(val, str):
@@ -92,7 +203,7 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 3. FONCTION D'INTERPRÉTATION IA
+# 4. FONCTION D'INTERPRÉTATION IA
 # --------------------------------------------------------------------
 def interpreter_resultats(df_coefficients, df_filtre):
     if df_filtre.empty:
@@ -168,7 +279,7 @@ def interpreter_resultats(df_coefficients, df_filtre):
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
-# 4. CHARGEMENT ET TRAITEMENT OPTIMISÉ
+# 5. CHARGEMENT ET TRAITEMENT OPTIMISÉ
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_et_calculer(file_bytes, filename):
@@ -178,43 +289,21 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # Vérifier les colonnes requises
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     if not all(col in df_raw.columns for col in required_cols):
         st.error(f"Colonnes manquantes. Requises : {required_cols}")
         st.stop()
     
-    # Filtrer les lignes : Articles non vide, ne contenant pas "Total" ou "vide"
-    # Utiliser des conditions séparées avec parenthèses
     df = df_raw.copy()
-    
-    # Supprimer les lignes où Articles est NaN
     df = df[df['Articles'].notna()]
-    
-    # Convertir en string pour les filtres
-    df['Articles_str'] = df['Articles'].astype(str)
-    
-    # Filtrer : pas de "Total", pas de "vide", pas vide
-    df = df[
-        (~df['Articles_str'].str.contains('Total', case=False, na=False)) &
-        (~df['Articles_str'].str.contains('vide', case=False, na=False)) &
-        (df['Articles_str'].str.strip() != '')
-    ]
-    
-    # Filtrer Mois année : non null et pas "Total"
+    df = df[~df['Articles'].astype(str).str.contains('Total', case=False, na=False)]
+    df = df[~df['Articles'].astype(str).str.contains('vide', case=False, na=False)]
+    df = df[df['Articles'].astype(str).str.strip() != '']
     df = df[df['Mois année'].notna()]
-    df['Mois_annee_str'] = df['Mois année'].astype(str)
-    df = df[~df['Mois_annee_str'].str.contains('Total', case=False, na=False)]
-    
-    # Filtrer Agences : non null et pas "Total"
+    df = df[~df['Mois année'].astype(str).str.contains('Total', case=False, na=False)]
     df = df[df['Agences'].notna()]
-    df['Agences_str'] = df['Agences'].astype(str)
-    df = df[~df['Agences_str'].str.contains('Total', case=False, na=False)]
+    df = df[~df['Agences'].astype(str).str.contains('Total', case=False, na=False)]
     
-    # Supprimer les colonnes temporaires
-    df = df.drop(columns=['Articles_str', 'Mois_annee_str', 'Agences_str'])
-    
-    # Renommer les colonnes
     df.rename(columns={
         'Segments': 'segment',
         'Marque': 'marque',
@@ -225,23 +314,20 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir Année
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
-    
-    # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    # Extraire le mois depuis "Mois année" (ex: "01 2024" -> mois = 1)
     df['mois_num'] = df['Mois année'].astype(str).str.extract(r'^(\d{2})').astype(int)
     df = df.dropna(subset=['mois_num'])
-    
-    # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
     # Filtrer pour ne garder que les agences valides
     df = df[df['agence'].isin(AGENCES)]
+    
+    # Filtrer pour ne garder que les articles actifs
+    df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
     
     # Filtrer période 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)]
@@ -294,7 +380,7 @@ def charger_et_calculer(file_bytes, filename):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 5. CHARGEMENT DU FICHIER
+# 6. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
@@ -314,22 +400,19 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. FILTRES
+# 7. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Article (premier filtre)
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque (filtrée selon les articles sélectionnés)
 if selected_articles:
     marques_options = sorted(df_coefficients[df_coefficients['Référence'].isin(selected_articles)]['marque'].unique())
 else:
     marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Segment (filtré selon articles et marques sélectionnés)
 if selected_articles and selected_marques:
     segments_options = sorted(df_coefficients[
         (df_coefficients['Référence'].isin(selected_articles)) & 
@@ -339,7 +422,6 @@ else:
     segments_options = sorted(df_coefficients['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
-# Appliquer les filtres
 df_filtre = df_coefficients[
     (df_coefficients['Référence'].isin(selected_articles)) &
     (df_coefficients['marque'].isin(selected_marques)) &
@@ -351,7 +433,7 @@ if df_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 7. TABLEAU PIVOT
+# 8. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
@@ -373,7 +455,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 8. GRAPHIQUE - Coefficients globaux par article (toutes agences confondues)
+# 9. GRAPHIQUE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
@@ -386,7 +468,6 @@ else:
     coeffs_globaux_normalises = coeffs_globaux_par_mois
 
 fig = go.Figure()
-
 fig.add_trace(go.Scatter(
     x=noms_mois,
     y=coeffs_globaux_normalises.reindex(mois_cols),
@@ -395,9 +476,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='blue', width=2),
     marker=dict(size=8)
 ))
-
 fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
-
 fig.update_layout(
     title="Coefficients de saisonnalité globaux par mois (toutes agences confondues)",
     xaxis_title="Mois",
@@ -408,17 +487,16 @@ fig.update_layout(
     xaxis=dict(showgrid=True, gridcolor='lightgray'),
     yaxis=dict(showgrid=True, gridcolor='lightgray')
 )
-
 st.plotly_chart(fig, width='stretch')
 
 # --------------------------------------------------------------------
-# 9. INTERPRÉTATION IA
+# 10. INTERPRÉTATION IA
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 10. TÉLÉCHARGEMENT
+# 11. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
