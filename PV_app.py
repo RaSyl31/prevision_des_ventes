@@ -280,12 +280,20 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
+    # Afficher un debug des colonnes
+    st.write("Colonnes trouvées :", list(df_raw.columns))
+    st.write("Nombre de lignes :", len(df_raw))
+    
+    # Vérifier les colonnes requises
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
-    if not all(col in df_raw.columns for col in required_cols):
-        st.error(f"Colonnes manquantes. Requises : {required_cols}")
+    missing_cols = [col for col in required_cols if col not in df_raw.columns]
+    if missing_cols:
+        st.error(f"Colonnes manquantes : {missing_cols}")
         st.stop()
     
     df = df_raw.copy()
+    
+    # Filtrer les lignes de détail
     df = df[df['Articles'].notna()]
     df = df[~df['Articles'].astype(str).str.contains('Total', case=False, na=False)]
     df = df[~df['Articles'].astype(str).str.contains('vide', case=False, na=False)]
@@ -295,6 +303,9 @@ def charger_et_calculer(file_bytes, filename):
     df = df[df['Agences'].notna()]
     df = df[~df['Agences'].astype(str).str.contains('Total', case=False, na=False)]
     
+    st.write("Après filtrage Total/vide :", len(df), "lignes")
+    
+    # Renommer les colonnes
     df.rename(columns={
         'Segments': 'segment',
         'Marque': 'marque',
@@ -305,13 +316,15 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
+    # Convertir Année
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
+    
+    # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    # CORRECTION : Extraire le mois depuis "Mois année" - format "01 2024"
-    # Prendre le premier élément avant l'espace
+    # Extraire le mois : prendre le premier élément avant l'espace
     df['mois_num'] = df['Mois année'].astype(str).str.strip().str.split(' ').str[0]
     df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
@@ -320,14 +333,22 @@ def charger_et_calculer(file_bytes, filename):
     # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
+    st.write("Années uniques :", sorted(df['Année'].unique()))
+    st.write("Mois uniques :", sorted(df['mois_num'].unique()))
+    st.write("Agences uniques :", df['agence'].unique())
+    st.write("Articles uniques :", len(df['Référence'].unique()))
+    
     # Filtrer agences valides
     df = df[df['agence'].isin(AGENCES)]
+    st.write("Après filtre agences :", len(df), "lignes")
     
     # Filtrer articles actifs
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
+    st.write("Après filtre articles actifs :", len(df), "lignes")
     
     # Filtrer période 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)]
+    st.write("Après filtre période 2024-2025 :", len(df_periode), "lignes")
     
     if df_periode.empty:
         return pd.DataFrame()
@@ -374,6 +395,8 @@ def charger_et_calculer(file_bytes, filename):
                     'coefficient': coeffs_arrondis[mois]
                 })
     
+    st.write("Résultats :", len(resultats), "lignes")
+    
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
@@ -395,6 +418,8 @@ df_coefficients = charger_et_calculer(file_bytes, filename)
 if df_coefficients.empty:
     st.warning("Aucune donnée sur la période 2024-2025 pour calculer les coefficients.")
     st.stop()
+
+st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
 # 7. FILTRES
