@@ -263,7 +263,25 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
+    # DEBUG : Afficher les colonnes et les valeurs uniques de Année
+    st.write("Colonnes :", list(df_raw.columns))
+    
+    # Trouver la colonne Année (peut être "Année" ou "Année.1")
+    colonne_annee = None
+    for col in df_raw.columns:
+        if 'Année' in str(col):
+            colonne_annee = col
+            break
+    
+    if colonne_annee is None:
+        st.error("Aucune colonne 'Année' trouvée")
+        st.stop()
+    
+    st.write(f"Colonne Année utilisée : '{colonne_annee}'")
+    st.write("Valeurs uniques :", sorted(df_raw[colonne_annee].dropna().unique()))
+    
+    # Vérifier les colonnes requises
+    required_cols = ['Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
     if missing_cols:
         st.error(f"Colonnes manquantes : {missing_cols}")
@@ -283,6 +301,7 @@ def charger_et_calculer(file_bytes, filename):
     
     # Renommer les colonnes
     df.rename(columns={
+        colonne_annee: 'Année',
         'Segments': 'segment',
         'Marque': 'marque',
         'Format': 'format',
@@ -292,10 +311,12 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir Année
+    # Convertir Année en numérique
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
+    
+    st.write("Années après conversion :", sorted(df['Année'].unique()))
     
     # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
@@ -318,12 +339,22 @@ def charger_et_calculer(file_bytes, filename):
     # Filtrer marques valides
     df = df[df['marque'].isin(MARQUES)]
     
-    # FORCER les années 2024-2025
-    annees_voulues = [2024, 2025]
-    df_periode = df[df['Année'].isin(annees_voulues)]
+    # Prendre les deux années les plus récentes
+    annees_disponibles = sorted(df['Année'].unique())
+    if len(annees_disponibles) >= 2:
+        annee_fin = annees_disponibles[-1]
+        annee_debut = annees_disponibles[-2]
+    elif len(annees_disponibles) == 1:
+        annee_debut = annees_disponibles[0]
+        annee_fin = annees_disponibles[0]
+    else:
+        return pd.DataFrame()
     
-    st.info(f"Années utilisées : 2024 - 2025")
-    st.info(f"Lignes trouvées pour 2024-2025 : {len(df_periode)}")
+    st.info(f"Années utilisées : {annee_debut} - {annee_fin}")
+    
+    df_periode = df[(df['Année'] >= annee_debut) & (df['Année'] <= annee_fin)]
+    
+    st.info(f"Lignes après filtrage période : {len(df_periode)}")
     
     if df_periode.empty:
         return pd.DataFrame()
@@ -389,7 +420,7 @@ filename = uploaded_file.name
 df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
-    st.warning("Aucune donnée pour les années 2024-2025.")
+    st.warning("Aucune donnée disponible pour calculer les coefficients.")
     st.stop()
 
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
@@ -399,19 +430,15 @@ st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Agence
 agences_options = sorted(df_coefficients['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
-# Article
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque
 marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Appliquer les filtres
 df_filtre = df_coefficients[
     (df_coefficients['agence'].isin(selected_agences)) &
     (df_coefficients['Référence'].isin(selected_articles)) &
