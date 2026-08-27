@@ -27,11 +27,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES AGENCES EXACTES
+# 1. LISTE DES AGENCES FINALES (avec correspondance 13-Diego = 03-Diego)
 # --------------------------------------------------------------------
 AGENCES = [
     "01-Tanjombato",
-    "03-Usine-Diego",
+    "03-Diego",
     "04-Tulear",
     "05-Fianarantsoa",
     "06-Ihosy",
@@ -40,12 +40,21 @@ AGENCES = [
     "09-Tamatave",
     "11-Andranomahery",
     "12-Antsirabe",
+    "17-Antsohihy",
     "18-Ambanja",
     "19-Sambava",
-    "21-Nosy-Be",
+    "21-NosyBe",
     "23-Morondava",
-    "24-Fort-Dauphin"
+    "24-Fort Dauphin"
 ]
+
+# Mapping des anciens noms vers les nouveaux
+MAPPING_AGENCES = {
+    "13-Diego": "03-Diego",
+    "13-Usine-Diego": "03-Diego",
+    "03-Usine-Diego": "03-Diego",
+    "03-Diego": "03-Diego"
+}
 
 # --------------------------------------------------------------------
 # 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
@@ -326,6 +335,9 @@ df = df[df['mois_num'].notna()]
 df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
 df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
+# Appliquer le mapping des agences
+df['agence'] = df['agence'].replace(MAPPING_AGENCES)
+
 # Filtrer pour ne garder que les agences valides
 df = df[df['agence'].isin(AGENCES)]
 
@@ -461,7 +473,6 @@ st.dataframe(pivot, use_container_width=True, height=600)
 # --------------------------------------------------------------------
 st.subheader("📈 Variation mensuelle des coefficients")
 
-# Calculer la moyenne des coefficients par mois pour toutes les lignes filtrées
 moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean().reindex(mois_cols)
 
 fig = go.Figure()
@@ -475,7 +486,6 @@ fig.add_trace(go.Scatter(
     marker=dict(size=8)
 ))
 
-# Ajouter une ligne de référence à 1.0
 fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
 
 fig.update_layout(
