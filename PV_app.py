@@ -27,7 +27,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 1. LISTE DES AGENCES FINALES (avec correspondance 13-Diego = 03-Diego)
+# 1. LISTE DES AGENCES FINALES
 # --------------------------------------------------------------------
 AGENCES = [
     "01-Tanjombato",
@@ -48,7 +48,6 @@ AGENCES = [
     "24-Fort Dauphin"
 ]
 
-# Mapping des anciens noms vers les nouveaux
 MAPPING_AGENCES = {
     "13-Diego": "03-Diego",
     "13-Usine-Diego": "03-Diego",
@@ -57,7 +56,7 @@ MAPPING_AGENCES = {
 }
 
 # --------------------------------------------------------------------
-# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
+# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (complète)
 # --------------------------------------------------------------------
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
@@ -291,7 +290,113 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 4. CHARGEMENT DU FICHIER
+# 4. CHARGEMENT ET TRAITEMENT OPTIMISÉ
+# --------------------------------------------------------------------
+@st.cache_data
+def charger_et_calculer(file_bytes, filename):
+    """Charge le fichier et calcule les coefficients en une seule fois (mis en cache)."""
+    if filename.endswith('.csv'):
+        df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
+    else:
+        df_raw = pd.read_excel(BytesIO(file_bytes))
+    
+    # Filtrer les lignes de détail
+    df = df_raw[
+        df_raw['Référence'].notna() &
+        ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
+        df_raw['Mois'].notna() &
+        ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
+    ].copy()
+    
+    # Mapping des références
+    df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
+    
+    # Conversion année
+    df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
+    df = df.dropna(subset=['Année'])
+    df['Année'] = df['Année'].astype(int)
+    
+    # Conversion ventes
+    df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
+    
+    # Création date
+    df['mois_num'] = df['Mois'].map(MOIS_FR)
+    df = df.dropna(subset=['mois_num'])
+    df['mois_num'] = df['mois_num'].astype(int)
+    df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
+    
+    # Renommage
+    df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
+    
+    # Mapping agences
+    df['agence'] = df['agence'].replace(MAPPING_AGENCES)
+    df = df[df['agence'].isin(AGENCES)]
+    
+    # Filtrer période 2024-2025
+    df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)]
+    
+    if df_periode.empty:
+        return pd.DataFrame()
+    
+    # Calcul vectorisé des coefficients
+    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+    
+    # Moyenne générale par groupe
+    moyenne_generale = df_periode.groupby(group_cols)['ventes hecto'].mean()
+    
+    # Moyenne par mois pour chaque groupe
+    moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['date'].dt.month])['ventes hecto'].mean()
+    
+    # Créer un DataFrame avec les résultats
+    resultats = []
+    
+    for (keys, moyenne_gen) in moyenne_generale.items():
+        if moyenne_gen <= 0:
+            continue
+        
+        coeffs = {}
+        for mois in range(1, 13):
+            key_with_month = keys + (mois,)
+            moyenne_mois = moyenne_par_mois.get(key_with_month, 0)
+            coeffs[mois] = moyenne_mois / moyenne_gen if moyenne_gen > 0 else 0
+        
+        # Normalisation
+        somme_coeffs = sum(coeffs.values())
+        if somme_coeffs > 0:
+            # Normaliser à 12
+            coeffs_norm = {m: (c / somme_coeffs) * 12 for m, c in coeffs.items()}
+            
+            # Arrondir avec ajustement du dernier mois
+            coeffs_arrondis = {}
+            somme_arrondie = 0
+            for mois in range(1, 12):
+                coeff = round(coeffs_norm[mois], 2)
+                coeffs_arrondis[mois] = coeff
+                somme_arrondie += coeff
+            
+            coeffs_arrondis[12] = round(12 - somme_arrondie, 2)
+            
+            # Vérification finale
+            somme_finale = sum(coeffs_arrondis.values())
+            if abs(somme_finale - 12) > 0.01:
+                coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
+            
+            for mois in range(1, 13):
+                resultats.append({
+                    'segment': keys[0],
+                    'marque': keys[1],
+                    'format': keys[2],
+                    'contenances': keys[3],
+                    'Référence': keys[4],
+                    'agence': keys[5],
+                    'mois': mois,
+                    'coefficient': coeffs_arrondis[mois]
+                })
+    
+    return pd.DataFrame(resultats)
+
+# --------------------------------------------------------------------
+# 5. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📊 Coefficients de Saisonnalité par Article et Agence")
 
@@ -304,128 +409,30 @@ if uploaded_file is None:
 file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
 
-try:
-    if filename.endswith('.csv'):
-        df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
-    else:
-        df_raw = pd.read_excel(BytesIO(file_bytes))
-except Exception as e:
-    st.error(f"Erreur lors du traitement du fichier : {e}")
-    st.stop()
-
-required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
-if not all(col in df_raw.columns for col in required_cols):
-    st.error(f"Colonnes manquantes. Requises : {required_cols}")
-    st.stop()
-
-df = df_raw[
-    df_raw['Référence'].notna() &
-    ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
-    df_raw['Mois'].notna() &
-    ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
-].copy()
-
-df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
-df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
-df = df.dropna(subset=['Année'])
-df['Année'] = df['Année'].astype(int)
-df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-df['mois_num'] = df['Mois'].apply(parse_mois)
-df = df[df['mois_num'].notna()]
-df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
-
-# Appliquer le mapping des agences
-df['agence'] = df['agence'].replace(MAPPING_AGENCES)
-
-# Filtrer pour ne garder que les agences valides
-df = df[df['agence'].isin(AGENCES)]
-
-# --------------------------------------------------------------------
-# 5. CALCUL DES COEFFICIENTS SAISONNIERS (somme exacte = 12)
-# --------------------------------------------------------------------
-def calculer_coefficients_saisonniers(df):
-    df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
-    
-    if df_periode.empty:
-        return pd.DataFrame()
-    
-    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
-    coefficients = []
-    
-    for keys, group in df_periode.groupby(group_cols):
-        segment, marque, format_, contenances, reference, agence = keys
-        
-        moyenne_generale = group['ventes hecto'].mean()
-        
-        if moyenne_generale <= 0:
-            continue
-        
-        coeffs_bruts = {}
-        for mois in range(1, 13):
-            ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
-            if len(ventes_mois) > 0:
-                moyenne_mensuelle = ventes_mois.mean()
-            else:
-                moyenne_mensuelle = 0
-            coeffs_bruts[mois] = moyenne_mensuelle / moyenne_generale
-        
-        somme_coeffs = sum(coeffs_bruts.values())
-        if somme_coeffs > 0:
-            coeffs_normalises = {}
-            for mois in range(1, 13):
-                coeffs_normalises[mois] = (coeffs_bruts[mois] / somme_coeffs) * 12
-            
-            coeffs_arrondis = {}
-            somme_arrondie = 0
-            for mois in range(1, 12):
-                coeff = round(coeffs_normalises[mois], 2)
-                coeffs_arrondis[mois] = coeff
-                somme_arrondie += coeff
-            
-            coeffs_arrondis[12] = round(12 - somme_arrondie, 2)
-            
-            somme_finale = sum(coeffs_arrondis.values())
-            if abs(somme_finale - 12) > 0.01:
-                coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
-            
-            for mois in range(1, 13):
-                coefficients.append({
-                    'segment': segment,
-                    'marque': marque,
-                    'format': format_,
-                    'contenances': contenances,
-                    'Référence': reference,
-                    'agence': agence,
-                    'mois': mois,
-                    'coefficient': coeffs_arrondis[mois]
-                })
-    
-    return pd.DataFrame(coefficients)
-
-df_coefficients = calculer_coefficients_saisonniers(df)
+# Utiliser le cache pour accélérer
+df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
     st.warning("Aucune donnée sur la période 2024-2025 pour calculer les coefficients.")
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. FILTRES DANS LA BARRE LATÉRALE (ordre : Article, Marque, Segment)
+# 6. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Article (premier filtre)
+# Article
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque (filtrée selon les articles sélectionnés)
+# Marque
 if selected_articles:
     marques_options = sorted(df_coefficients[df_coefficients['Référence'].isin(selected_articles)]['marque'].unique())
 else:
     marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Segment (filtré selon articles et marques sélectionnés)
+# Segment
 if selected_articles and selected_marques:
     segments_options = sorted(df_coefficients[
         (df_coefficients['Référence'].isin(selected_articles)) & 
@@ -469,7 +476,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, use_container_width=True, height=600)
 
 # --------------------------------------------------------------------
-# 8. GRAPHIQUE DE VARIATION MENSUELLE
+# 8. GRAPHIQUE
 # --------------------------------------------------------------------
 st.subheader("📈 Variation mensuelle des coefficients")
 
