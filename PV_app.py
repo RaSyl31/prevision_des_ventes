@@ -67,10 +67,9 @@ AGENCES = [
 ]
 
 # --------------------------------------------------------------------
-# 2. BASE DE RÉFÉRENCE DES ARTICLES ACTIFS (sans les lignes Total)
+# 2. BASE DE RÉFÉRENCE DES ARTICLES ACTIFS
 # --------------------------------------------------------------------
 BASE_ARTICLES = [
-    # 1-BIERES
     ("1-BIERES", "1-Queen s", "VER", "33cl", "Queen s 33 cl VER"),
     ("1-BIERES", "1-Queen s", "VER", "65cl", "Queen s 65 cl VER"),
     ("1-BIERES", "3-Fresh", "CAN", "33cl", "FRESH 33 cl CAN"),
@@ -107,7 +106,6 @@ BASE_ARTICLES = [
     ("1-BIERES", "7-Autres bieres", "FUT", "2000cl", "THB Blanche 20L Export FUT"),
     ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB 8% 50 cl VER"),
     ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB Blanche 50 cl VER"),
-    # 2-BG
     ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Bonbon Anglais 33 cl CAN"),
     ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Grenadine 33 cl CAN"),
     ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Orange 33 cl CAN"),
@@ -164,7 +162,6 @@ BASE_ARTICLES = [
     ("2-BG", "5-World Cola", "VER", "100cl", "World Cola 100cl WOCO VER"),
     ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl VER"),
     ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl WOCO VER"),
-    # 3-EAUX
     ("3-EAUX", "1-Cristalline", "PET", "100cl", "Cristalline 100 cl PET"),
     ("3-EAUX", "1-Cristalline", "PET", "200cl", "Cristalline 200 cl PET"),
     ("3-EAUX", "2-Eau vive", "PET", "150cl", "Eau vive 150 cl PET"),
@@ -174,21 +171,16 @@ BASE_ARTICLES = [
     ("3-EAUX", "3-Cristal", "VER", "100cl", "Cristal 100 cl VER"),
     ("3-EAUX", "3-Cristal", "VER", "30cl", "Cristal 30 cl VER"),
     ("3-EAUX", "3-Cristal", "VER", "50cl", "Cristal 50 cl VER"),
-    # 5-ALCOMIX
     ("5-ALCOMIX", "1-Booster", "PET", "35cl", "Booster Tornado 35CL PET"),
     ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Appel-Mix 50CL VER"),
     ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster CUBA LIBRE 50CL VER"),
     ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Tornado 50CL VER VER"),
     ("5-ALCOMIX", "2-Alcomix Divers", "VER", "33cl", "Racines 33 cl VER"),
     ("5-ALCOMIX", "2-Alcomix Divers", "VER", "50cl", "BOTA Fresh 50 cl VER"),
-    # 7-VIN
     ("7-VIN", "Vin", "0cl", "50cl", "Valmont 50cl"),
 ]
 
-# Convertir en DataFrame
 df_base_articles = pd.DataFrame(BASE_ARTICLES, columns=["segment", "marque", "format", "contenances", "Référence"])
-
-# Liste des articles actifs uniquement
 ARTICLES_ACTIFS = df_base_articles['Référence'].unique().tolist()
 
 # --------------------------------------------------------------------
@@ -279,11 +271,10 @@ def interpreter_resultats(df_coefficients, df_filtre):
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
-# 5. CHARGEMENT ET TRAITEMENT OPTIMISÉ
+# 5. CHARGEMENT ET TRAITEMENT
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_et_calculer(file_bytes, filename):
-    """Charge le fichier et calcule les coefficients."""
     if filename.endswith('.csv'):
         df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
     else:
@@ -319,14 +310,20 @@ def charger_et_calculer(file_bytes, filename):
     df['Année'] = df['Année'].astype(int)
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    df['mois_num'] = df['Mois année'].astype(str).str.extract(r'^(\d{2})').astype(int)
+    # CORRECTION : Extraire le mois depuis "Mois année" - format "01 2024"
+    # Prendre le premier élément avant l'espace
+    df['mois_num'] = df['Mois année'].astype(str).str.strip().str.split(' ').str[0]
+    df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
+    df['mois_num'] = df['mois_num'].astype(int)
+    
+    # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
-    # Filtrer pour ne garder que les agences valides
+    # Filtrer agences valides
     df = df[df['agence'].isin(AGENCES)]
     
-    # Filtrer pour ne garder que les articles actifs
+    # Filtrer articles actifs
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
     
     # Filtrer période 2024-2025
