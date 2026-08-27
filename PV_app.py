@@ -47,7 +47,7 @@ AGENCES = [
 ]
 
 # --------------------------------------------------------------------
-# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (complète)
+# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
 # --------------------------------------------------------------------
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
@@ -329,7 +329,7 @@ df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 df = df[df['agence'].isin(AGENCES)]
 
 # --------------------------------------------------------------------
-# 5. CALCUL DES COEFFICIENTS SAISONNIERS (normalisés pour somme = 12)
+# 5. CALCUL DES COEFFICIENTS SAISONNIERS (somme exacte = 12)
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df):
     """
@@ -337,7 +337,7 @@ def calculer_coefficients_saisonniers(df):
     1. Moyenne générale = moyenne des ventes sur 24 mois (2024-2025)
     2. Moyenne mensuelle = (ventes mois 2024 + ventes mois 2025) / 2
     3. Coefficient brut = Moyenne mensuelle / Moyenne générale
-    4. Normalisation : somme des 12 coefficients = 12
+    4. Normalisation : somme des 12 coefficients = 12 exactement
     """
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
     
@@ -366,25 +366,42 @@ def calculer_coefficients_saisonniers(df):
                 moyenne_mensuelle = 0
             coeffs_bruts[mois] = moyenne_mensuelle / moyenne_generale
         
-        # Normaliser pour que la somme = 12
+        # Normaliser pour que la somme = 12 (avec précision)
         somme_coeffs = sum(coeffs_bruts.values())
         if somme_coeffs > 0:
-            facteur_normalisation = 12 / somme_coeffs
-        else:
-            facteur_normalisation = 1
-        
-        for mois in range(1, 13):
-            coefficient_normalise = coeffs_bruts[mois] * facteur_normalisation
-            coefficients.append({
-                'segment': segment,
-                'marque': marque,
-                'format': format_,
-                'contenances': contenances,
-                'Référence': reference,
-                'agence': agence,
-                'mois': mois,
-                'coefficient': round(coefficient_normalise, 2)
-            })
+            # Calculer les coefficients normalisés
+            coeffs_normalises = {}
+            for mois in range(1, 13):
+                coeffs_normalises[mois] = (coeffs_bruts[mois] / somme_coeffs) * 12
+            
+            # Arrondir à 2 décimales
+            coeffs_arrondis = {}
+            somme_arrondie = 0
+            for mois in range(1, 12):
+                coeff = round(coeffs_normalises[mois], 2)
+                coeffs_arrondis[mois] = coeff
+                somme_arrondie += coeff
+            
+            # Le dernier mois (décembre) compense pour que la somme = 12 exactement
+            coeffs_arrondis[12] = round(12 - somme_arrondie, 2)
+            
+            # Vérification finale
+            somme_finale = sum(coeffs_arrondis.values())
+            if abs(somme_finale - 12) > 0.01:
+                # Ajuster le dernier mois si nécessaire
+                coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
+            
+            for mois in range(1, 13):
+                coefficients.append({
+                    'segment': segment,
+                    'marque': marque,
+                    'format': format_,
+                    'contenances': contenances,
+                    'Référence': reference,
+                    'agence': agence,
+                    'mois': mois,
+                    'coefficient': coeffs_arrondis[mois]
+                })
     
     return pd.DataFrame(coefficients)
 
@@ -395,11 +412,53 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. TABLEAU PIVOT
+# 6. FILTRES DANS LA BARRE LATÉRALE
+# --------------------------------------------------------------------
+st.sidebar.header("Filtres")
+
+# Agence
+agences_options = sorted(df_coefficients['agence'].unique())
+selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
+
+# Segment
+segments_options = sorted(df_coefficients['segment'].unique())
+selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
+
+# Marque (filtrée selon les segments sélectionnés)
+if selected_segments:
+    marques_options = sorted(df_coefficients[df_coefficients['segment'].isin(selected_segments)]['marque'].unique())
+else:
+    marques_options = sorted(df_coefficients['marque'].unique())
+selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
+
+# Article (filtré selon segments et marques sélectionnés)
+if selected_segments and selected_marques:
+    articles_options = sorted(df_coefficients[
+        (df_coefficients['segment'].isin(selected_segments)) & 
+        (df_coefficients['marque'].isin(selected_marques))
+    ]['Référence'].unique())
+else:
+    articles_options = sorted(df_coefficients['Référence'].unique())
+selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
+
+# Appliquer les filtres
+df_filtre = df_coefficients[
+    (df_coefficients['agence'].isin(selected_agences)) &
+    (df_coefficients['segment'].isin(selected_segments)) &
+    (df_coefficients['marque'].isin(selected_marques)) &
+    (df_coefficients['Référence'].isin(selected_articles))
+]
+
+if df_filtre.empty:
+    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
+    st.stop()
+
+# --------------------------------------------------------------------
+# 7. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.subheader("Coefficients de saisonnalité mensuels (somme = 12)")
 
-pivot = df_coefficients.pivot_table(
+pivot = df_filtre.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
     columns='mois',
     values='coefficient',
@@ -418,7 +477,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 7. TÉLÉCHARGEMENT
+# 8. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
