@@ -476,13 +476,7 @@ if df_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 8. INTERPRÉTATION IA
-# --------------------------------------------------------------------
-st.markdown("### 🤖 Interprétation IA des résultats")
-st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
-
-# --------------------------------------------------------------------
-# 9. TABLEAU PIVOT
+# 8. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.subheader("Coefficients de saisonnalité mensuels")
 
@@ -504,7 +498,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, use_container_width=True, height=600)
 
 # --------------------------------------------------------------------
-# 10. GRAPHIQUE
+# 9. GRAPHIQUE
 # --------------------------------------------------------------------
 st.subheader("📈 Variation mensuelle des coefficients")
 
@@ -535,6 +529,12 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
+# --------------------------------------------------------------------
+# 10. INTERPRÉTATION IA (en bas du graphique)
+# --------------------------------------------------------------------
+st.markdown("### 🤖 Interprétation et Recommandations")
+st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
 # 11. TÉLÉCHARGEMENT
