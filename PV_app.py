@@ -70,100 +70,42 @@ AGENCES = [
 # 2. LISTE DES ARTICLES ACTIFS
 # --------------------------------------------------------------------
 ARTICLES_ACTIFS = [
-    "Booster Appel-Mix 50CL VER",
-    "Booster Tornado 50CL VER VER",
-    "Caprice Ananas 100 cl VER",
-    "Caprice Ananas 150 cl PET",
-    "Caprice Ananas 30 cl VER",
-    "Caprice Bonbon Anglais 100 cl VER",
-    "Caprice Bonbon Anglais 150 cl PET",
-    "Caprice Bonbon Anglais 30 cl VER",
-    "Caprice Bonbon Anglais 35 cl PET",
-    "Caprice Bonbon Anglais 50 cl PET",
-    "Caprice Grenadine 100 cl VER",
-    "Caprice Grenadine 150 cl PET",
-    "Caprice Grenadine 30 cl VER",
-    "Caprice Grenadine 33 cl CAN",
-    "Caprice Grenadine 35 cl PET",
-    "Caprice Grenadine 50 cl PET",
-    "Caprice Orange 100 cl VER",
-    "Caprice Orange 150 cl PET",
-    "Caprice Orange 30 cl VER",
-    "Caprice Orange 33 cl CAN",
-    "Caprice Orange 35 cl PET",
-    "Caprice Orange 50 cl PET",
-    "Caprice Bonbon Anglais 33 cl CAN",
-    "Caprice Citron 100 cl VER",
-    "Caprice Citron 150 cl PET",
-    "Caprice Citron 30 cl VER",
-    "Caprice Citron 50 cl PET",
-    "Tonic 100 cl VER",
-    "Tonic 30 cl VER",
-    "World Cola 100cl VER",
-    "World Cola 100cl WOCO VER",
-    "World Cola 150cl PET",
-    "World Cola 30cl VER",
-    "World Cola 30cl WOCO VER",
-    "World Cola 33 cl CAN",
-    "World Cola 35cl PET",
-    "World Cola 50cl PET",
-    "Beaufort 33 CL CAN",
-    "Beaufort 33CL VER",
-    "FRESH 33 cl CAN",
-    "THB Fresh 33 cl VER",
-    "THB Fresh 65 cl VER",
-    "Gold 8 50 cl CAN",
-    "Gold 8 50 cl VER",
-    "Gold Blanche 33cl VER",
-    "Gold Blanche 50 cl CAN",
-    "Gold Blanche 50 cl VER",
-    "Gold Blonde 33 cl VER",
-    "Gold Blonde 50 cl CAN",
-    "Gold Blonde 50 cl VER",
-    "Gold Blonde 65 cl VER",
-    "Queen s 65 cl VER",
-    "THB Pilsener 33 cl VER",
-    "THB Pilsener 50 cl CAN",
+    "Booster Appel-Mix 50CL VER", "Booster Tornado 50CL VER VER",
+    "Caprice Ananas 100 cl VER", "Caprice Ananas 150 cl PET", "Caprice Ananas 30 cl VER",
+    "Caprice Bonbon Anglais 100 cl VER", "Caprice Bonbon Anglais 150 cl PET",
+    "Caprice Bonbon Anglais 30 cl VER", "Caprice Bonbon Anglais 35 cl PET",
+    "Caprice Bonbon Anglais 50 cl PET", "Caprice Grenadine 100 cl VER",
+    "Caprice Grenadine 150 cl PET", "Caprice Grenadine 30 cl VER",
+    "Caprice Grenadine 33 cl CAN", "Caprice Grenadine 35 cl PET", "Caprice Grenadine 50 cl PET",
+    "Caprice Orange 100 cl VER", "Caprice Orange 150 cl PET", "Caprice Orange 30 cl VER",
+    "Caprice Orange 33 cl CAN", "Caprice Orange 35 cl PET", "Caprice Orange 50 cl PET",
+    "Caprice Bonbon Anglais 33 cl CAN", "Caprice Citron 100 cl VER",
+    "Caprice Citron 150 cl PET", "Caprice Citron 30 cl VER", "Caprice Citron 50 cl PET",
+    "Tonic 100 cl VER", "Tonic 30 cl VER",
+    "World Cola 100cl VER", "World Cola 100cl WOCO VER", "World Cola 150cl PET",
+    "World Cola 30cl VER", "World Cola 30cl WOCO VER", "World Cola 33 cl CAN",
+    "World Cola 35cl PET", "World Cola 50cl PET",
+    "Beaufort 33 CL CAN", "Beaufort 33CL VER",
+    "FRESH 33 cl CAN", "THB Fresh 33 cl VER", "THB Fresh 65 cl VER",
+    "Gold 8 50 cl CAN", "Gold 8 50 cl VER", "Gold Blanche 33cl VER",
+    "Gold Blanche 50 cl CAN", "Gold Blanche 50 cl VER", "Gold Blonde 33 cl VER",
+    "Gold Blonde 50 cl CAN", "Gold Blonde 50 cl VER", "Gold Blonde 65 cl VER",
+    "Queen s 65 cl VER", "THB Pilsener 33 cl VER", "THB Pilsener 50 cl CAN",
     "THB Pilsener 65 cl VER",
-    "Cristal 100 cl VER",
-    "Cristal 150 cl PET",
-    "Cristal 30 cl VER",
-    "Cristal 50 cl VER",
-    "Cristalline 100 cl PET",
-    "Cristalline 200 cl PET",
-    "Eau vive 150 cl PET",
-    "Eau vive 50 cl PET",
-    "Eau vive 50 cl VER",
-    "FOSA 50 cl CAN",
-    "XXL 30cl BOB VER",
-    "XXL 30cl VER",
-    "XXL 33 cl CAN",
-    "XXL 35cl PET"
+    "Cristal 100 cl VER", "Cristal 150 cl PET", "Cristal 30 cl VER", "Cristal 50 cl VER",
+    "Cristalline 100 cl PET", "Cristalline 200 cl PET",
+    "Eau vive 150 cl PET", "Eau vive 50 cl PET", "Eau vive 50 cl VER",
+    "FOSA 50 cl CAN", "XXL 30cl BOB VER", "XXL 30cl VER", "XXL 33 cl CAN", "XXL 35cl PET"
 ]
 
 # --------------------------------------------------------------------
 # 3. LISTE DES MARQUES
 # --------------------------------------------------------------------
 MARQUES = [
-    "1-Booster",
-    "1-Caprice",
-    "1-Cristalline",
-    "1-Queen s",
-    "1-XXL",
-    "2-Alcomix Divers",
-    "2-Eau vive",
-    "2-FOSA",
-    "2-Tonic",
-    "3-Cristal",
-    "3-D jino",
-    "3-Fresh",
-    "4-THB",
-    "4-Youzou",
-    "5-Gold",
-    "5-World Cola",
-    "6-Beaufort",
-    "7-Autres bieres",
-    "Vin"
+    "1-Booster", "1-Caprice", "1-Cristalline", "1-Queen s", "1-XXL",
+    "2-Alcomix Divers", "2-Eau vive", "2-FOSA", "2-Tonic", "3-Cristal",
+    "3-D jino", "3-Fresh", "4-THB", "4-Youzou", "5-Gold", "5-World Cola",
+    "6-Beaufort", "7-Autres bieres", "Vin"
 ]
 
 # --------------------------------------------------------------------
@@ -196,7 +138,6 @@ def interpreter_resultats(df_coefficients, df_filtre):
     mois_tres_faibles = moyennes_par_mois[moyennes_par_mois < 0.8].index.tolist()
     
     interpretations.append("### 📊 Analyse Globale de la Saisonnalité")
-    
     if mois_tres_forts:
         interpretations.append(f"🔴 **Pics majeurs** : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
     if mois_forts:
@@ -240,16 +181,13 @@ def interpreter_resultats(df_coefficients, df_filtre):
         interpretations.append(f"   - Augmenter les stocks de sécurité avant : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
     if mois_tres_faibles:
         interpretations.append(f"   - Réduire les commandes pendant : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
-    
     interpretations.append("**📣 Actions Marketing :**")
     if mois_tres_faibles:
         interpretations.append(f"   - Promotions pour stimuler la demande en : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
     if mois_tres_forts:
         interpretations.append(f"   - Capitaliser sur la demande naturelle en : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
-    
     interpretations.append("**💰 Gestion de Trésorerie :**")
     interpretations.append("   - Prévoir des besoins en fonds de roulement plus élevés pendant les pics")
-    interpretations.append("   - Optimiser les délais de paiement selon la saisonnalité")
     
     return "\n".join(interpretations)
 
@@ -263,25 +201,8 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # DEBUG : Afficher les colonnes et les valeurs uniques de Année
-    st.write("Colonnes :", list(df_raw.columns))
-    
-    # Trouver la colonne Année (peut être "Année" ou "Année.1")
-    colonne_annee = None
-    for col in df_raw.columns:
-        if 'Année' in str(col):
-            colonne_annee = col
-            break
-    
-    if colonne_annee is None:
-        st.error("Aucune colonne 'Année' trouvée")
-        st.stop()
-    
-    st.write(f"Colonne Année utilisée : '{colonne_annee}'")
-    st.write("Valeurs uniques :", sorted(df_raw[colonne_annee].dropna().unique()))
-    
-    # Vérifier les colonnes requises
-    required_cols = ['Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
+    # Vérifier les colonnes exactes
+    required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
     if missing_cols:
         st.error(f"Colonnes manquantes : {missing_cols}")
@@ -301,7 +222,6 @@ def charger_et_calculer(file_bytes, filename):
     
     # Renommer les colonnes
     df.rename(columns={
-        colonne_annee: 'Année',
         'Segments': 'segment',
         'Marque': 'marque',
         'Format': 'format',
@@ -316,8 +236,6 @@ def charger_et_calculer(file_bytes, filename):
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
     
-    st.write("Années après conversion :", sorted(df['Année'].unique()))
-    
     # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
@@ -330,31 +248,13 @@ def charger_et_calculer(file_bytes, filename):
     # Créer la date
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
     
-    # Filtrer agences valides
+    # Filtrer agences, articles, marques
     df = df[df['agence'].isin(AGENCES)]
-    
-    # Filtrer articles actifs
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
-    
-    # Filtrer marques valides
     df = df[df['marque'].isin(MARQUES)]
     
-    # Prendre les deux années les plus récentes
-    annees_disponibles = sorted(df['Année'].unique())
-    if len(annees_disponibles) >= 2:
-        annee_fin = annees_disponibles[-1]
-        annee_debut = annees_disponibles[-2]
-    elif len(annees_disponibles) == 1:
-        annee_debut = annees_disponibles[0]
-        annee_fin = annees_disponibles[0]
-    else:
-        return pd.DataFrame()
-    
-    st.info(f"Années utilisées : {annee_debut} - {annee_fin}")
-    
-    df_periode = df[(df['Année'] >= annee_debut) & (df['Année'] <= annee_fin)]
-    
-    st.info(f"Lignes après filtrage période : {len(df_periode)}")
+    # Utiliser les années 2024-2025
+    df_periode = df[df['Année'].isin([2024, 2025])]
     
     if df_periode.empty:
         return pd.DataFrame()
@@ -420,7 +320,7 @@ filename = uploaded_file.name
 df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
-    st.warning("Aucune donnée disponible pour calculer les coefficients.")
+    st.warning("Aucune donnée 2024-2025 trouvée.")
     st.stop()
 
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
