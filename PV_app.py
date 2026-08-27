@@ -380,13 +380,11 @@ except Exception as e:
     st.error(f"Erreur lors du traitement du fichier : {e}")
     st.stop()
 
-# Vérifier les colonnes
 required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
 if not all(col in df_raw.columns for col in required_cols):
     st.error(f"Colonnes manquantes. Requises : {required_cols}")
     st.stop()
 
-# Nettoyage
 df = df_raw[
     df_raw['Référence'].notna() &
     ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
@@ -405,7 +403,6 @@ df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].asty
 df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
 df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 
-# Filtrer pour ne garder que les articles actifs
 df = df[df['Référence'].isin(df_active['article_actif'])]
 
 # --------------------------------------------------------------------
@@ -419,16 +416,16 @@ else:
     df['valeur'] = df['ventes hecto'] * 10000 / df['contenance_cl']
 
 # --------------------------------------------------------------------
-# 6. CALCUL DES COEFFICIENTS SAISONNIERS (MOYENNE.SI.ENS sur 2024-2025)
+# 6. CALCUL DES COEFFICIENTS SAISONNIERS (méthode exacte)
 # --------------------------------------------------------------------
-def calculer_coefficients_saisonniers(df, date_debut='2024-01-01', date_fin='2025-12-31'):
+def calculer_coefficients_saisonniers(df):
     """
-    Calcule les coefficients de saisonnalité comme la formule Excel :
-    MOYENNE.SI.ENS sur la période 01/01/2024 au 01/12/2025,
-    puis coefficient = moyenne du mois / moyenne globale sur la période.
+    Méthode :
+    1. Moyenne histo = moyenne des ventes par article/agence sur 2024-2025 (24 mois)
+    2. Coefficient mois = (vente mois 2024 + vente mois 2025) / 2 / Moyenne histo
     """
-    # Filtrer sur la période 2024-2025
-    df_periode = df[(df['date'] >= date_debut) & (df['date'] <= date_fin)].copy()
+    # Filtrer sur 2024-2025
+    df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
     
     if df_periode.empty:
         return pd.DataFrame()
@@ -436,31 +433,37 @@ def calculer_coefficients_saisonniers(df, date_debut='2024-01-01', date_fin='202
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     coefficients = []
     
-    # Moyenne globale sur la période pour chaque combinaison
-    moyennes_globales = df_periode.groupby(group_cols)['valeur'].mean().to_dict()
-    
-    # Moyenne par mois pour chaque combinaison
-    moyennes_par_mois = df_periode.groupby(group_cols + [df_periode['date'].dt.month])['valeur'].mean()
-    
-    for keys, moyenne_mensuelle in moyennes_par_mois.items():
-        *group_keys, mois = keys
-        moyenne_globale = moyennes_globales.get(tuple(group_keys), 0)
+    # Pour chaque combinaison article-agence
+    for keys, group in df_periode.groupby(group_cols):
+        segment, marque, format_, contenances, reference, agence = keys
         
-        if moyenne_globale > 0:
-            coefficient = moyenne_mensuelle / moyenne_globale
-        else:
-            coefficient = 0
+        # Moyenne histo = moyenne de toutes les ventes mensuelles de 2024-2025
+        moyenne_histo = group['valeur'].mean()
         
-        coefficients.append({
-            'segment': group_keys[0],
-            'marque': group_keys[1],
-            'format': group_keys[2],
-            'contenances': group_keys[3],
-            'Référence': group_keys[4],
-            'agence': group_keys[5],
-            'mois': mois,
-            'coefficient': round(coefficient, 4)
-        })
+        if moyenne_histo <= 0:
+            continue
+        
+        # Pour chaque mois, calculer la moyenne des ventes de ce mois sur 2024 et 2025
+        for mois in range(1, 13):
+            ventes_mois = group[group['date'].dt.month == mois]['valeur']
+            
+            if len(ventes_mois) == 0:
+                coefficient = 0
+            else:
+                # Moyenne des ventes du mois (ex: janvier 2024 + janvier 2025) / 2
+                moyenne_mois = ventes_mois.mean()
+                coefficient = moyenne_mois / moyenne_histo
+            
+            coefficients.append({
+                'segment': segment,
+                'marque': marque,
+                'format': format_,
+                'contenances': contenances,
+                'Référence': reference,
+                'agence': agence,
+                'mois': mois,
+                'coefficient': round(coefficient, 2)
+            })
     
     return pd.DataFrame(coefficients)
 
