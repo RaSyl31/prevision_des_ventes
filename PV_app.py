@@ -321,17 +321,7 @@ REFERENCE_TO_ARTICLE = {
 }
 
 # --------------------------------------------------------------------
-# 3. LISTE DES AGENCES
-# --------------------------------------------------------------------
-AGENCES = [
-    "00-Siège", "01-Tanjombato", "03-Usine-Diego", "04-Tulear",
-    "05-Fianarantsoa", "06-Ihosy", "07-Majunga", "08-Manakara",
-    "09-Tamatave", "11-Andranomahery", "12-Antsirabe", "18-Ambanja",
-    "19-Sambava", "21-Nosy-Be", "23-Morondava", "24-Fort-Dauphin"
-]
-
-# --------------------------------------------------------------------
-# 4. FONCTIONS UTILITAIRES
+# 3. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
 MOIS_FR = {
     'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4, 'mai': 5, 'juin': 6,
@@ -368,77 +358,7 @@ def extraire_format(article_str):
     return None
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CHARGEMENT ET NETTOYAGE
-# --------------------------------------------------------------------
-@st.cache_data
-def traiter_fichier(file_bytes, filename):
-    if filename.endswith('.csv'):
-        df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
-    else:
-        df_raw = pd.read_excel(BytesIO(file_bytes))
-
-    required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
-    if not all(col in df_raw.columns for col in required_cols):
-        raise ValueError(f"Colonnes manquantes. Requises : {required_cols}")
-
-    df = df_raw[
-        df_raw['Référence'].notna() &
-        ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
-        df_raw['Mois'].notna() &
-        ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
-    ].copy()
-
-    df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
-    df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
-    df = df.dropna(subset=['Année'])
-    df['Année'] = df['Année'].astype(int)
-    df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-    df['mois_num'] = df['Mois'].apply(parse_mois)
-    df = df[df['mois_num'].notna()]
-    df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
-    df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
-    df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
-
-    df = df[df['Référence'].isin(df_active['article_actif'])]
-
-    return df
-
-# --------------------------------------------------------------------
-# 6. CALCUL DES COEFFICIENTS SAISONNIERS
-# --------------------------------------------------------------------
-def calculer_coefficients_saisonniers(df_hist):
-    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
-    coefficients = []
-
-    for keys, group in df_hist.groupby(group_cols):
-        segment, marque, format_, contenances, reference, agence = keys
-
-        serie = group.groupby('date')['valeur'].sum().sort_index()
-
-        if len(serie) < 24:  # Au moins 2 ans de données
-            continue
-
-        moyennes_par_mois = serie.groupby(serie.index.month).mean()
-        moyenne_globale = serie.mean()
-
-        if moyenne_globale > 0:
-            for mois in range(1, 13):
-                coef = moyennes_par_mois.get(mois, 0.0) / moyenne_globale
-                coefficients.append({
-                    'segment': segment,
-                    'marque': marque,
-                    'format': format_,
-                    'contenances': contenances,
-                    'Référence': reference,
-                    'agence': agence,
-                    'mois': mois,
-                    'coefficient': round(coef, 4)
-                })
-
-    return pd.DataFrame(coefficients)
-
-# --------------------------------------------------------------------
-# 7. CHARGEMENT DU FICHIER
+# 4. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📊 Coefficients de Saisonnalité par Article et Agence")
 
@@ -452,13 +372,44 @@ file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
 
 try:
-    df = traiter_fichier(file_bytes, filename)
+    if filename.endswith('.csv'):
+        df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
+    else:
+        df_raw = pd.read_excel(BytesIO(file_bytes))
 except Exception as e:
     st.error(f"Erreur lors du traitement du fichier : {e}")
     st.stop()
 
+# Vérifier les colonnes
+required_cols = ['Année', 'Mois', 'segment', 'marque_1', 'format', 'Nom agence', 'contenances', 'Référence', 'ventes hecto']
+if not all(col in df_raw.columns for col in required_cols):
+    st.error(f"Colonnes manquantes. Requises : {required_cols}")
+    st.stop()
+
+# Nettoyage
+df = df_raw[
+    df_raw['Référence'].notna() &
+    ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
+    df_raw['Mois'].notna() &
+    ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
+].copy()
+
+df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
+df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
+df = df.dropna(subset=['Année'])
+df['Année'] = df['Année'].astype(int)
+df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
+df['mois_num'] = df['Mois'].apply(parse_mois)
+df = df[df['mois_num'].notna()]
+df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(int).astype(str) + '-01')
+df['contenance_cl'] = df['contenances'].apply(extraire_contenance_cl)
+df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
+
+# Filtrer pour ne garder que les articles actifs
+df = df[df['Référence'].isin(df_active['article_actif'])]
+
 # --------------------------------------------------------------------
-# 8. CHOIX DE L'UNITÉ (optionnel)
+# 5. CHOIX DE L'UNITÉ
 # --------------------------------------------------------------------
 unite = st.sidebar.radio("Unité", ["Hectolitres", "Bouteilles"])
 
@@ -468,19 +419,61 @@ else:
     df['valeur'] = df['ventes hecto'] * 10000 / df['contenance_cl']
 
 # --------------------------------------------------------------------
-# 9. CALCUL DES COEFFICIENTS
+# 6. CALCUL DES COEFFICIENTS SAISONNIERS (MOYENNE.SI.ENS sur 2024-2025)
 # --------------------------------------------------------------------
-df_hist = df[df['date'].dt.year <= 2026].copy()
-df_coefficients = calculer_coefficients_saisonniers(df_hist)
+def calculer_coefficients_saisonniers(df, date_debut='2024-01-01', date_fin='2025-12-31'):
+    """
+    Calcule les coefficients de saisonnalité comme la formule Excel :
+    MOYENNE.SI.ENS sur la période 01/01/2024 au 01/12/2025,
+    puis coefficient = moyenne du mois / moyenne globale sur la période.
+    """
+    # Filtrer sur la période 2024-2025
+    df_periode = df[(df['date'] >= date_debut) & (df['date'] <= date_fin)].copy()
+    
+    if df_periode.empty:
+        return pd.DataFrame()
+    
+    group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
+    coefficients = []
+    
+    # Moyenne globale sur la période pour chaque combinaison
+    moyennes_globales = df_periode.groupby(group_cols)['valeur'].mean().to_dict()
+    
+    # Moyenne par mois pour chaque combinaison
+    moyennes_par_mois = df_periode.groupby(group_cols + [df_periode['date'].dt.month])['valeur'].mean()
+    
+    for keys, moyenne_mensuelle in moyennes_par_mois.items():
+        *group_keys, mois = keys
+        moyenne_globale = moyennes_globales.get(tuple(group_keys), 0)
+        
+        if moyenne_globale > 0:
+            coefficient = moyenne_mensuelle / moyenne_globale
+        else:
+            coefficient = 0
+        
+        coefficients.append({
+            'segment': group_keys[0],
+            'marque': group_keys[1],
+            'format': group_keys[2],
+            'contenances': group_keys[3],
+            'Référence': group_keys[4],
+            'agence': group_keys[5],
+            'mois': mois,
+            'coefficient': round(coefficient, 4)
+        })
+    
+    return pd.DataFrame(coefficients)
+
+df_coefficients = calculer_coefficients_saisonniers(df)
 
 if df_coefficients.empty:
-    st.warning("Aucune donnée suffisante pour calculer les coefficients de saisonnalité.")
+    st.warning("Aucune donnée sur la période 2024-2025 pour calculer les coefficients.")
     st.stop()
 
 # --------------------------------------------------------------------
-# 10. TABLEAU PIVOT
+# 7. TABLEAU PIVOT
 # --------------------------------------------------------------------
-st.subheader("Coefficients de saisonnalité mensuels")
+st.subheader("Coefficients de saisonnalité mensuels (période 2024-2025)")
 
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
@@ -498,12 +491,12 @@ pivot.columns = noms_mois
 st.dataframe(pivot, use_container_width=True, height=800)
 
 # --------------------------------------------------------------------
-# 11. TÉLÉCHARGEMENT
+# 8. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
     label="Télécharger les coefficients (CSV)",
     data=csv,
-    file_name="coefficients_saisonnalite.csv",
+    file_name="coefficients_saisonnalite_2024_2025.csv",
     mime="text/csv"
 )
