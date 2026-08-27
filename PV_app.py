@@ -67,124 +67,107 @@ AGENCES = [
 ]
 
 # --------------------------------------------------------------------
-# 2. BASE DE RÉFÉRENCE DES ARTICLES ACTIFS
+# 2. LISTE DES ARTICLES ACTIFS
 # --------------------------------------------------------------------
-BASE_ARTICLES = [
-    ("1-BIERES", "1-Queen s", "VER", "33cl", "Queen s 33 cl VER"),
-    ("1-BIERES", "1-Queen s", "VER", "65cl", "Queen s 65 cl VER"),
-    ("1-BIERES", "3-Fresh", "CAN", "33cl", "FRESH 33 cl CAN"),
-    ("1-BIERES", "3-Fresh", "CAN", "33cl", "FRESH 33 cl EXPORT CAN"),
-    ("1-BIERES", "3-Fresh", "VER", "33cl", "THB Fresh 33 cl VER"),
-    ("1-BIERES", "3-Fresh", "VER", "50cl", "THB Fresh 50 cl VER"),
-    ("1-BIERES", "3-Fresh", "VER", "65cl", "THB Fresh 65 cl VER"),
-    ("1-BIERES", "4-THB", "CAN", "33cl", "THB Pilsener 33 cl CAN"),
-    ("1-BIERES", "4-THB", "CAN", "50cl", "THB Pilsener 50 cl CAN"),
-    ("1-BIERES", "4-THB", "FUT", "2000cl", "THB Pilsener 20L Export FUT"),
-    ("1-BIERES", "4-THB", "FUT", "2000cl", "THB Pilsener 20L FUT"),
-    ("1-BIERES", "4-THB", "FUT", "3000cl", "THB Pilsener 30L Export FUT"),
-    ("1-BIERES", "4-THB", "FUT", "3000cl", "THB Pilsener 30L FUT"),
-    ("1-BIERES", "4-THB", "VER", "33cl", "THB Pilsener 33 cl VER"),
-    ("1-BIERES", "4-THB", "VER", "33cl", "THB Speciale NOEL 33 cl VER"),
-    ("1-BIERES", "4-THB", "VER", "50cl", "THB Pilsener 50 cl VER"),
-    ("1-BIERES", "4-THB", "VER", "65cl", "THB Pilsener 65 cl VER"),
-    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold 8 50 cl CAN"),
-    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold Blanche 50 cl CAN"),
-    ("1-BIERES", "5-Gold", "CAN", "50cl", "Gold Blonde 50 cl CAN"),
-    ("1-BIERES", "5-Gold", "FUT", "2000cl", "Gold Blanche 20L FUT"),
-    ("1-BIERES", "5-Gold", "FUT", "3000cl", "Gold Blanche 30L FUT"),
-    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Amigo 33cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Blanche 33cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Blonde 33 cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "33cl", "Gold Rosee 33cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold 8 50 cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold Blanche 50 cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "50cl", "Gold Blonde 50 cl VER"),
-    ("1-BIERES", "5-Gold", "VER", "65cl", "Gold Blonde 65 cl VER"),
-    ("1-BIERES", "6-Beaufort", "CAN", "33cl", "Beaufort 33 cl CAN"),
-    ("1-BIERES", "6-Beaufort", "CAN", "50cl", "Beaufort 50 CL CAN"),
-    ("1-BIERES", "6-Beaufort", "VER", "33cl", "Beaufort 33CL VER"),
-    ("1-BIERES", "7-Autres bieres", "FUT", "2000cl", "THB Blanche 20L Export FUT"),
-    ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB 8% 50 cl VER"),
-    ("1-BIERES", "7-Autres bieres", "VER", "50cl", "THB Blanche 50 cl VER"),
-    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Bonbon Anglais 33 cl CAN"),
-    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Grenadine 33 cl CAN"),
-    ("2-BG", "1-Caprice", "CAN", "33cl", "Caprice Orange 33 cl CAN"),
-    ("2-BG", "1-Caprice", "FUT", "2000cl", "Caprice Bonbon Anglais 20L FUT"),
-    ("2-BG", "1-Caprice", "FUT", "2000cl", "Caprice Orange 20L FUT"),
-    ("2-BG", "1-Caprice", "FUT", "3000cl", "Caprice Bonbon Anglais 30L FUT"),
-    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Ananas 150 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Bonbon Anglais 150 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Grenadine 150 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Orange 150 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "150cl", "Caprice Pomme 150 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Bonbon Anglais 35 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Grenadine 35 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "35cl", "Caprice Orange 35 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Ananas 50 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Bonbon Anglais 50 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Grenadine 50 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Orange 50 cl PET"),
-    ("2-BG", "1-Caprice", "PET", "50cl", "Caprice Pomme 50 cl PET"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Ananas 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Bonbon Anglais 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Citron 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Grenadine 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Orange 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "100cl", "Caprice Pomme 100 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Ananas 30 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Bonbon Anglais 30 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Citron 30 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Grenadine 30 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Orange 30 cl VER"),
-    ("2-BG", "1-Caprice", "VER", "30cl", "Caprice Pomme 30 cl VER"),
-    ("2-BG", "1-XXL", "CAN", "33cl", "XXL 33 cl CAN"),
-    ("2-BG", "1-XXL", "PET", "35cl", "XXL 35cl PET"),
-    ("2-BG", "1-XXL", "VER", "30cl", "XXL 30cl BOB VER"),
-    ("2-BG", "1-XXL", "VER", "30cl", "XXL 30cl VER"),
-    ("2-BG", "2-FOSA", "CAN", "50cl", "FOSA 50 cl CAN"),
-    ("2-BG", "2-Tonic", "VER", "100cl", "Tonic 100 cl VER"),
-    ("2-BG", "2-Tonic", "VER", "30cl", "Tonic 30 cl VER"),
-    ("2-BG", "3-D jino", "PET", "125cl", "D Jino Cola 125cl PET"),
-    ("2-BG", "3-D jino", "PET", "125cl", "D Jino tropical 125cl PET"),
-    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Cola 35cl PET"),
-    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Limonady 35cl PET"),
-    ("2-BG", "3-D jino", "PET", "35cl", "D Jino Tropical 35cl PET"),
-    ("2-BG", "4-Youzou", "PET", "150cl", "Youzou 150 cl PET"),
-    ("2-BG", "4-Youzou", "PET", "50cl", "Youzou 50cl PET"),
-    ("2-BG", "4-Youzou", "VER", "100cl", "Youzou 100 cl VER"),
-    ("2-BG", "4-Youzou", "VER", "30cl", "Youzou 30 cl VER"),
-    ("2-BG", "5-World Cola", "CAN", "33cl", "World Cola 33 cl CAN"),
-    ("2-BG", "5-World Cola", "FUT", "2000cl", "World Cola 20L FUT"),
-    ("2-BG", "5-World Cola", "PET", "150cl", "World Cola 150cl PET"),
-    ("2-BG", "5-World Cola", "PET", "35cl", "World Cola 35cl PET"),
-    ("2-BG", "5-World Cola", "PET", "50cl", "World Cola 50cl PET"),
-    ("2-BG", "5-World Cola", "VER", "100cl", "World Cola 100cl VER"),
-    ("2-BG", "5-World Cola", "VER", "100cl", "World Cola 100cl WOCO VER"),
-    ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl VER"),
-    ("2-BG", "5-World Cola", "VER", "30cl", "World Cola 30cl WOCO VER"),
-    ("3-EAUX", "1-Cristalline", "PET", "100cl", "Cristalline 100 cl PET"),
-    ("3-EAUX", "1-Cristalline", "PET", "200cl", "Cristalline 200 cl PET"),
-    ("3-EAUX", "2-Eau vive", "PET", "150cl", "Eau vive 150 cl PET"),
-    ("3-EAUX", "2-Eau vive", "PET", "50cl", "Eau vive 50 cl PET"),
-    ("3-EAUX", "2-Eau vive", "VER", "50cl", "Eau vive 50 cl VER"),
-    ("3-EAUX", "3-Cristal", "PET", "150cl", "Cristal 150 cl PET"),
-    ("3-EAUX", "3-Cristal", "VER", "100cl", "Cristal 100 cl VER"),
-    ("3-EAUX", "3-Cristal", "VER", "30cl", "Cristal 30 cl VER"),
-    ("3-EAUX", "3-Cristal", "VER", "50cl", "Cristal 50 cl VER"),
-    ("5-ALCOMIX", "1-Booster", "PET", "35cl", "Booster Tornado 35CL PET"),
-    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Appel-Mix 50CL VER"),
-    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster CUBA LIBRE 50CL VER"),
-    ("5-ALCOMIX", "1-Booster", "VER", "50cl", "Booster Tornado 50CL VER VER"),
-    ("5-ALCOMIX", "2-Alcomix Divers", "VER", "33cl", "Racines 33 cl VER"),
-    ("5-ALCOMIX", "2-Alcomix Divers", "VER", "50cl", "BOTA Fresh 50 cl VER"),
-    ("7-VIN", "Vin", "0cl", "50cl", "Valmont 50cl"),
+ARTICLES_ACTIFS = [
+    "Booster Appel-Mix 50CL VER",
+    "Booster Tornado 50CL VER VER",
+    "Caprice Ananas 100 cl VER",
+    "Caprice Ananas 150 cl PET",
+    "Caprice Ananas 30 cl VER",
+    "Caprice Bonbon Anglais 100 cl VER",
+    "Caprice Bonbon Anglais 150 cl PET",
+    "Caprice Bonbon Anglais 30 cl VER",
+    "Caprice Bonbon Anglais 35 cl PET",
+    "Caprice Bonbon Anglais 50 cl PET",
+    "Caprice Grenadine 100 cl VER",
+    "Caprice Grenadine 150 cl PET",
+    "Caprice Grenadine 30 cl VER",
+    "Caprice Grenadine 33 cl CAN",
+    "Caprice Grenadine 35 cl PET",
+    "Caprice Grenadine 50 cl PET",
+    "Caprice Orange 100 cl VER",
+    "Caprice Orange 150 cl PET",
+    "Caprice Orange 30 cl VER",
+    "Caprice Orange 33 cl CAN",
+    "Caprice Orange 35 cl PET",
+    "Caprice Orange 50 cl PET",
+    "Caprice Bonbon Anglais 33 cl CAN",
+    "Caprice Citron 100 cl VER",
+    "Caprice Citron 150 cl PET",
+    "Caprice Citron 30 cl VER",
+    "Caprice Citron 50 cl PET",
+    "Tonic 100 cl VER",
+    "Tonic 30 cl VER",
+    "World Cola 100cl VER",
+    "World Cola 100cl WOCO VER",
+    "World Cola 150cl PET",
+    "World Cola 30cl VER",
+    "World Cola 30cl WOCO VER",
+    "World Cola 33 cl CAN",
+    "World Cola 35cl PET",
+    "World Cola 50cl PET",
+    "Beaufort 33 CL CAN",
+    "Beaufort 33CL VER",
+    "FRESH 33 cl CAN",
+    "THB Fresh 33 cl VER",
+    "THB Fresh 65 cl VER",
+    "Gold 8 50 cl CAN",
+    "Gold 8 50 cl VER",
+    "Gold Blanche 33cl VER",
+    "Gold Blanche 50 cl CAN",
+    "Gold Blanche 50 cl VER",
+    "Gold Blonde 33 cl VER",
+    "Gold Blonde 50 cl CAN",
+    "Gold Blonde 50 cl VER",
+    "Gold Blonde 65 cl VER",
+    "Queen s 65 cl VER",
+    "THB Pilsener 33 cl VER",
+    "THB Pilsener 50 cl CAN",
+    "THB Pilsener 65 cl VER",
+    "Cristal 100 cl VER",
+    "Cristal 150 cl PET",
+    "Cristal 30 cl VER",
+    "Cristal 50 cl VER",
+    "Cristalline 100 cl PET",
+    "Cristalline 200 cl PET",
+    "Eau vive 150 cl PET",
+    "Eau vive 50 cl PET",
+    "Eau vive 50 cl VER",
+    "FOSA 50 cl CAN",
+    "XXL 30cl BOB VER",
+    "XXL 30cl VER",
+    "XXL 33 cl CAN",
+    "XXL 35cl PET"
 ]
 
-df_base_articles = pd.DataFrame(BASE_ARTICLES, columns=["segment", "marque", "format", "contenances", "Référence"])
-ARTICLES_ACTIFS = df_base_articles['Référence'].unique().tolist()
+# --------------------------------------------------------------------
+# 3. LISTE DES MARQUES
+# --------------------------------------------------------------------
+MARQUES = [
+    "1-Booster",
+    "1-Caprice",
+    "1-Cristalline",
+    "1-Queen s",
+    "1-XXL",
+    "2-Alcomix Divers",
+    "2-Eau vive",
+    "2-FOSA",
+    "2-Tonic",
+    "3-Cristal",
+    "3-D jino",
+    "3-Fresh",
+    "4-THB",
+    "4-Youzou",
+    "5-Gold",
+    "5-World Cola",
+    "6-Beaufort",
+    "7-Autres bieres",
+    "Vin"
+]
 
 # --------------------------------------------------------------------
-# 3. FONCTIONS UTILITAIRES
+# 4. FONCTIONS UTILITAIRES
 # --------------------------------------------------------------------
 def nettoyer_nombre(val):
     if isinstance(val, str):
@@ -195,7 +178,7 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 4. FONCTION D'INTERPRÉTATION IA
+# 5. FONCTION D'INTERPRÉTATION IA
 # --------------------------------------------------------------------
 def interpreter_resultats(df_coefficients, df_filtre):
     if df_filtre.empty:
@@ -271,7 +254,7 @@ def interpreter_resultats(df_coefficients, df_filtre):
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
-# 5. CHARGEMENT ET TRAITEMENT
+# 6. CHARGEMENT ET TRAITEMENT
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_et_calculer(file_bytes, filename):
@@ -280,7 +263,6 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # Vérifier les colonnes requises
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
     if missing_cols:
@@ -310,7 +292,7 @@ def charger_et_calculer(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir Année directement en int (c'est déjà un nombre)
+    # Convertir Année
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
@@ -318,7 +300,7 @@ def charger_et_calculer(file_bytes, filename):
     # Convertir ventes
     df['ventes_hecto'] = df['ventes_hecto'].apply(nettoyer_nombre)
     
-    # Extraire le mois depuis "Mois année" (ex: "01 2024" -> 1)
+    # Extraire le mois depuis "Mois année"
     df['mois_num'] = df['Mois année'].astype(str).str.strip().str.split(' ').str[0]
     df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
@@ -333,7 +315,10 @@ def charger_et_calculer(file_bytes, filename):
     # Filtrer articles actifs
     df = df[df['Référence'].isin(ARTICLES_ACTIFS)]
     
-    # Utiliser les deux années les plus récentes disponibles
+    # Filtrer marques valides
+    df = df[df['marque'].isin(MARQUES)]
+    
+    # Utiliser les deux années les plus récentes
     annees_disponibles = sorted(df['Année'].unique())
     if len(annees_disponibles) >= 2:
         annee_fin = annees_disponibles[-1]
@@ -344,7 +329,7 @@ def charger_et_calculer(file_bytes, filename):
     else:
         return pd.DataFrame()
     
-    st.info(f"Années utilisées pour le calcul : {annee_debut} - {annee_fin}")
+    st.info(f"Années utilisées : {annee_debut} - {annee_fin}")
     
     df_periode = df[(df['Année'] >= annee_debut) & (df['Année'] <= annee_fin)]
     
@@ -396,7 +381,7 @@ def charger_et_calculer(file_bytes, filename):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 6. CHARGEMENT DU FICHIER
+# 7. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
@@ -418,32 +403,27 @@ if df_coefficients.empty:
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
-# 7. FILTRES
+# 8. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
+# Agence (premier filtre)
+agences_options = sorted(df_coefficients['agence'].unique())
+selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
+
+# Article (deuxième filtre)
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-if selected_articles:
-    marques_options = sorted(df_coefficients[df_coefficients['Référence'].isin(selected_articles)]['marque'].unique())
-else:
-    marques_options = sorted(df_coefficients['marque'].unique())
+# Marque (troisième filtre)
+marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-if selected_articles and selected_marques:
-    segments_options = sorted(df_coefficients[
-        (df_coefficients['Référence'].isin(selected_articles)) & 
-        (df_coefficients['marque'].isin(selected_marques))
-    ]['segment'].unique())
-else:
-    segments_options = sorted(df_coefficients['segment'].unique())
-selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-
+# Appliquer les filtres
 df_filtre = df_coefficients[
+    (df_coefficients['agence'].isin(selected_agences)) &
     (df_coefficients['Référence'].isin(selected_articles)) &
-    (df_coefficients['marque'].isin(selected_marques)) &
-    (df_coefficients['segment'].isin(selected_segments))
+    (df_coefficients['marque'].isin(selected_marques))
 ]
 
 if df_filtre.empty:
@@ -451,7 +431,7 @@ if df_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 8. TABLEAU PIVOT
+# 9. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
@@ -473,7 +453,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 9. GRAPHIQUE
+# 10. GRAPHIQUE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
@@ -508,13 +488,13 @@ fig.update_layout(
 st.plotly_chart(fig, width='stretch')
 
 # --------------------------------------------------------------------
-# 10. INTERPRÉTATION IA
+# 11. INTERPRÉTATION IA
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 11. TÉLÉCHARGEMENT
+# 12. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
