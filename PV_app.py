@@ -23,6 +23,13 @@ st.markdown("""
     div[data-testid="stDataFrame"] { height: 600px !important; }
     .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
     .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
+    .ia-box {
+        background-color: #E8F5E9;
+        border-left: 5px solid #4CAF50;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,7 +63,7 @@ MAPPING_AGENCES = {
 }
 
 # --------------------------------------------------------------------
-# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE (complète)
+# 2. TABLE DE CORRESPONDANCE RÉFÉRENCE -> ARTICLE
 # --------------------------------------------------------------------
 REFERENCE_TO_ARTICLE = {
     "105-THB Pilsener 33 cl CAN": "THB Pilsener 33 cl CAN",
@@ -275,12 +282,6 @@ MOIS_FR = {
     'juillet': 7, 'août': 8, 'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
 }
 
-def parse_mois(mois_str):
-    if isinstance(mois_str, str):
-        mois_str = mois_str.lower().strip()
-        return MOIS_FR.get(mois_str)
-    return None
-
 def nettoyer_nombre(val):
     if isinstance(val, str):
         val = val.replace(' ', '').replace(',', '.')
@@ -290,7 +291,59 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 4. CHARGEMENT ET TRAITEMENT OPTIMISÉ
+# 4. FONCTION D'INTERPRÉTATION IA
+# --------------------------------------------------------------------
+def interpreter_resultats(df_coefficients, df_filtre):
+    """
+    Fonction d'interprétation intelligente des coefficients de saisonnalité.
+    """
+    if df_filtre.empty:
+        return "Aucune donnée à interpréter."
+    
+    interpretations = []
+    
+    # Analyse globale
+    moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean()
+    mois_forts = moyennes_par_mois[moyennes_par_mois > 1.1].index.tolist()
+    mois_faibles = moyennes_par_mois[moyennes_par_mois < 0.9].index.tolist()
+    
+    noms_mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+    
+    # Interprétation globale
+    if mois_forts:
+        mois_forts_noms = [noms_mois[m-1] for m in mois_forts]
+        interpretations.append(f"📈 **Mois de forte activité** : {', '.join(mois_forts_noms)}")
+    
+    if mois_faibles:
+        mois_faibles_noms = [noms_mois[m-1] for m in mois_faibles]
+        interpretations.append(f"📉 **Mois de faible activité** : {', '.join(mois_faibles_noms)}")
+    
+    # Analyse par segment
+    for segment in df_filtre['segment'].unique():
+        df_seg = df_filtre[df_filtre['segment'] == segment]
+        moy_seg = df_seg.groupby('mois')['coefficient'].mean()
+        pic = moy_seg.idxmax()
+        creux = moy_seg.idxmin()
+        interpretations.append(f"🏭 **{segment}** : Pic en {noms_mois[pic-1]} (coef {moy_seg[pic]:.2f}), Creux en {noms_mois[creux-1]} (coef {moy_seg[creux]:.2f})")
+    
+    # Analyse des articles les plus saisonniers
+    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False)
+    if len(variabilite) > 0:
+        article_top = variabilite.index[0]
+        interpretations.append(f"🔍 **Article le plus saisonnier** : {article_top}")
+    
+    # Recommandations
+    interpretations.append("\n💡 **Recommandations** :")
+    if mois_forts:
+        interpretations.append(f"- Prévoir des stocks plus importants pour les mois de forte activité")
+    if mois_faibles:
+        interpretations.append(f"- Réduire les commandes pendant les mois de faible activité")
+    
+    return "\n".join(interpretations)
+
+# --------------------------------------------------------------------
+# 5. CHARGEMENT ET TRAITEMENT OPTIMISÉ
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_et_calculer(file_bytes, filename):
@@ -300,7 +353,6 @@ def charger_et_calculer(file_bytes, filename):
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
     
-    # Filtrer les lignes de détail
     df = df_raw[
         df_raw['Référence'].notna() &
         ~df_raw['Référence'].astype(str).str.contains('Total', na=False) &
@@ -308,46 +360,28 @@ def charger_et_calculer(file_bytes, filename):
         ~df_raw['Mois'].astype(str).str.contains('Total', na=False)
     ].copy()
     
-    # Mapping des références
     df['Référence'] = df['Référence'].map(REFERENCE_TO_ARTICLE).fillna(df['Référence'])
-    
-    # Conversion année
     df['Année'] = pd.to_numeric(df['Année'].astype(str).str.replace(' ', ''), errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
-    
-    # Conversion ventes
     df['ventes hecto'] = df['ventes hecto'].apply(nettoyer_nombre)
-    
-    # Création date
     df['mois_num'] = df['Mois'].map(MOIS_FR)
     df = df.dropna(subset=['mois_num'])
     df['mois_num'] = df['mois_num'].astype(int)
     df['date'] = pd.to_datetime(df['Année'].astype(str) + '-' + df['mois_num'].astype(str) + '-01')
-    
-    # Renommage
     df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
-    
-    # Mapping agences
     df['agence'] = df['agence'].replace(MAPPING_AGENCES)
     df = df[df['agence'].isin(AGENCES)]
     
-    # Filtrer période 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)]
     
     if df_periode.empty:
         return pd.DataFrame()
     
-    # Calcul vectorisé des coefficients
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
-    
-    # Moyenne générale par groupe
     moyenne_generale = df_periode.groupby(group_cols)['ventes hecto'].mean()
-    
-    # Moyenne par mois pour chaque groupe
     moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['date'].dt.month])['ventes hecto'].mean()
     
-    # Créer un DataFrame avec les résultats
     resultats = []
     
     for (keys, moyenne_gen) in moyenne_generale.items():
@@ -360,23 +394,16 @@ def charger_et_calculer(file_bytes, filename):
             moyenne_mois = moyenne_par_mois.get(key_with_month, 0)
             coeffs[mois] = moyenne_mois / moyenne_gen if moyenne_gen > 0 else 0
         
-        # Normalisation
         somme_coeffs = sum(coeffs.values())
         if somme_coeffs > 0:
-            # Normaliser à 12
             coeffs_norm = {m: (c / somme_coeffs) * 12 for m, c in coeffs.items()}
-            
-            # Arrondir avec ajustement du dernier mois
             coeffs_arrondis = {}
             somme_arrondie = 0
             for mois in range(1, 12):
                 coeff = round(coeffs_norm[mois], 2)
                 coeffs_arrondis[mois] = coeff
                 somme_arrondie += coeff
-            
             coeffs_arrondis[12] = round(12 - somme_arrondie, 2)
-            
-            # Vérification finale
             somme_finale = sum(coeffs_arrondis.values())
             if abs(somme_finale - 12) > 0.01:
                 coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
@@ -396,7 +423,7 @@ def charger_et_calculer(file_bytes, filename):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 5. CHARGEMENT DU FICHIER
+# 6. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.title("📊 Coefficients de Saisonnalité par Article et Agence")
 
@@ -409,7 +436,6 @@ if uploaded_file is None:
 file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
 
-# Utiliser le cache pour accélérer
 df_coefficients = charger_et_calculer(file_bytes, filename)
 
 if df_coefficients.empty:
@@ -417,22 +443,19 @@ if df_coefficients.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 6. FILTRES
+# 7. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Article
 articles_options = sorted(df_coefficients['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque
 if selected_articles:
     marques_options = sorted(df_coefficients[df_coefficients['Référence'].isin(selected_articles)]['marque'].unique())
 else:
     marques_options = sorted(df_coefficients['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Segment
 if selected_articles and selected_marques:
     segments_options = sorted(df_coefficients[
         (df_coefficients['Référence'].isin(selected_articles)) & 
@@ -442,7 +465,6 @@ else:
     segments_options = sorted(df_coefficients['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
-# Appliquer les filtres
 df_filtre = df_coefficients[
     (df_coefficients['Référence'].isin(selected_articles)) &
     (df_coefficients['marque'].isin(selected_marques)) &
@@ -454,7 +476,13 @@ if df_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 7. TABLEAU PIVOT
+# 8. INTERPRÉTATION IA
+# --------------------------------------------------------------------
+st.markdown("### 🤖 Interprétation IA des résultats")
+st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients, df_filtre).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
+
+# --------------------------------------------------------------------
+# 9. TABLEAU PIVOT
 # --------------------------------------------------------------------
 st.subheader("Coefficients de saisonnalité mensuels")
 
@@ -476,7 +504,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, use_container_width=True, height=600)
 
 # --------------------------------------------------------------------
-# 8. GRAPHIQUE
+# 10. GRAPHIQUE
 # --------------------------------------------------------------------
 st.subheader("📈 Variation mensuelle des coefficients")
 
@@ -509,7 +537,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # --------------------------------------------------------------------
-# 9. TÉLÉCHARGEMENT
+# 11. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
