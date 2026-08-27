@@ -329,16 +329,16 @@ df.rename(columns={'Nom agence': 'agence', 'marque_1': 'marque'}, inplace=True)
 df = df[df['agence'].isin(AGENCES)]
 
 # --------------------------------------------------------------------
-# 5. CALCUL DES COEFFICIENTS SAISONNIERS (méthode classique)
+# 5. CALCUL DES COEFFICIENTS SAISONNIERS (normalisés pour somme = 12)
 # --------------------------------------------------------------------
 def calculer_coefficients_saisonniers(df):
     """
-    Méthode classique :
-    1. Moyenne générale = Total des ventes / 24 mois (pour 2024-2025)
+    Méthode :
+    1. Moyenne générale = moyenne des ventes sur 24 mois (2024-2025)
     2. Moyenne mensuelle = (ventes mois 2024 + ventes mois 2025) / 2
-    3. Coefficient du mois = Moyenne mensuelle / Moyenne générale
+    3. Coefficient brut = Moyenne mensuelle / Moyenne générale
+    4. Normalisation : somme des 12 coefficients = 12
     """
-    # Filtrer sur 2024-2025
     df_periode = df[(df['date'].dt.year >= 2024) & (df['date'].dt.year <= 2025)].copy()
     
     if df_periode.empty:
@@ -347,27 +347,34 @@ def calculer_coefficients_saisonniers(df):
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     coefficients = []
     
-    # Pour chaque combinaison article-agence
     for keys, group in df_periode.groupby(group_cols):
         segment, marque, format_, contenances, reference, agence = keys
         
-        # Moyenne générale = moyenne de toutes les ventes mensuelles sur 24 mois
+        # Moyenne générale sur 24 mois
         moyenne_generale = group['ventes hecto'].mean()
         
         if moyenne_generale <= 0:
             continue
         
-        # Calculer la moyenne mensuelle pour chaque mois
+        # Calculer les coefficients bruts pour chaque mois
+        coeffs_bruts = {}
         for mois in range(1, 13):
             ventes_mois = group[group['date'].dt.month == mois]['ventes hecto']
-            
             if len(ventes_mois) > 0:
                 moyenne_mensuelle = ventes_mois.mean()
             else:
                 moyenne_mensuelle = 0
-            
-            coefficient = moyenne_mensuelle / moyenne_generale
-            
+            coeffs_bruts[mois] = moyenne_mensuelle / moyenne_generale
+        
+        # Normaliser pour que la somme = 12
+        somme_coeffs = sum(coeffs_bruts.values())
+        if somme_coeffs > 0:
+            facteur_normalisation = 12 / somme_coeffs
+        else:
+            facteur_normalisation = 1
+        
+        for mois in range(1, 13):
+            coefficient_normalise = coeffs_bruts[mois] * facteur_normalisation
             coefficients.append({
                 'segment': segment,
                 'marque': marque,
@@ -376,7 +383,7 @@ def calculer_coefficients_saisonniers(df):
                 'Référence': reference,
                 'agence': agence,
                 'mois': mois,
-                'coefficient': round(coefficient, 2)
+                'coefficient': round(coefficient_normalise, 2)
             })
     
     return pd.DataFrame(coefficients)
@@ -390,7 +397,7 @@ if df_coefficients.empty:
 # --------------------------------------------------------------------
 # 6. TABLEAU PIVOT
 # --------------------------------------------------------------------
-st.subheader("Coefficients de saisonnalité mensuels (période 2024-2025)")
+st.subheader("Coefficients de saisonnalité mensuels (somme = 12)")
 
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
@@ -404,6 +411,9 @@ pivot = pivot.reindex(columns=mois_cols)
 
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
+
+# Ajouter colonne Total pour vérification
+pivot['Total'] = pivot.sum(axis=1)
 
 st.dataframe(pivot, use_container_width=True, height=800)
 
