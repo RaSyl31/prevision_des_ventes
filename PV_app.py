@@ -29,6 +29,20 @@ st.markdown("""
         margin: 10px 0;
     }
     
+    /* Gros titre en rouge sur fond blanc */
+    .gros-titre-blanc {
+        background-color: white;
+        color: #CC0000 !important;
+        padding: 15px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 28px;
+        display: block;
+        margin: 15px 0;
+        border-left: 8px solid #CC0000;
+        text-align: center;
+    }
+    
     .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
     .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
     
@@ -70,14 +84,6 @@ st.markdown("""
         padding: 5px 8px;
         text-align: center;
         border: 1px solid #e0e0e0;
-    }
-    .table-rouge td:first-child,
-    .table-rouge td:nth-child(2),
-    .table-rouge td:nth-child(3),
-    .table-rouge td:nth-child(4),
-    .table-rouge td:nth-child(5),
-    .table-rouge td:nth-child(6) {
-        text-align: left;
     }
     .table-rouge tr:nth-child(even) {
         background-color: #f9f9f9;
@@ -376,11 +382,9 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     return coeffs_normalises
 
 # --------------------------------------------------------------------
-# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML AVEC COLONNES DISTINCTES
+# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df):
-    """Génère un tableau HTML avec entêtes rouges et colonnes distinctes."""
-    
     html = '<div class="table-rouge"><table>'
     
     # En-tête
@@ -494,7 +498,12 @@ if df_coefficients.empty:
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
-# 11. TABLEAU PRINCIPAL (HTML avec colonnes distinctes)
+# 11. GROS TITRE "Saisonnalité par Article"
+# --------------------------------------------------------------------
+st.markdown('<span class="gros-titre-blanc">📊 Saisonnalité par Article</span>', unsafe_allow_html=True)
+
+# --------------------------------------------------------------------
+# 12. TABLEAU PRINCIPAL (HTML avec colonnes distinctes)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
@@ -513,12 +522,11 @@ pivot.columns = noms_mois
 
 pivot['Total'] = pivot.sum(axis=1)
 
-# Afficher le tableau HTML
 html_tableau = generer_tableau_html(pivot)
 st.markdown(html_tableau, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 12. COEFFICIENT GLOBAL PAR MOIS
+# 13. COEFFICIENT GLOBAL PAR MOIS (avec Total)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
@@ -527,6 +535,7 @@ coefs_globaux = calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025])
 if coefs_globaux:
     noms_mois_courts = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
     coefs_values = [coefs_globaux.get(m, 0) for m in range(1, 13)]
+    total_global = sum(coefs_values)
     
     html_table = '<div class="coef-global-table">'
     html_table += '<table>'
@@ -534,11 +543,13 @@ if coefs_globaux:
     html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Mois</th>'
     for m in noms_mois_courts:
         html_table += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">{m}</th>'
+    html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Total</th>'
     html_table += '</tr>'
     html_table += '<tr>'
     html_table += '<td style="font-weight: bold; background-color: #E3F2FD; padding: 5px 10px;">Coefficient</td>'
     for v in coefs_values:
         html_table += f'<td style="background-color: white; padding: 5px 10px; text-align: center;">{v:.2f}</td>'
+    html_table += f'<td style="background-color: #E3F2FD; font-weight: bold; padding: 5px 10px; text-align: center;">{total_global:.2f}</td>'
     html_table += '</tr>'
     html_table += '</table></div>'
     
@@ -548,7 +559,7 @@ else:
     coefs_globaux = {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 13. GRAPHIQUE
+# 14. GRAPHIQUE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
@@ -577,13 +588,13 @@ fig.update_layout(
 st.plotly_chart(fig, width='stretch')
 
 # --------------------------------------------------------------------
-# 14. INTERPRÉTATION IA
+# 15. INTERPRÉTATION IA
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 15. TÉLÉCHARGEMENT
+# 16. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
