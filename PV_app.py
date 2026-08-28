@@ -29,8 +29,6 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    .stDataFrame { width: 100%; border: 1px solid #CCCCCC; }
-    div[data-testid="stDataFrame"] { height: 600px !important; }
     .stButton > button, .stDownloadButton > button { background-color: #4CAF50; color: white; border: none; }
     .stButton > button:hover, .stDownloadButton > button:hover { background-color: #45a049; }
     
@@ -42,11 +40,44 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    /* Style pour les entêtes des tableaux Streamlit (DataFrame) */
-    div[data-testid="stDataFrame"] table thead th {
-        background-color: #CC0000 !important;
-        color: white !important;
-        font-weight: bold !important;
+    /* Tableau HTML avec entêtes rouges */
+    .table-rouge {
+        background-color: white;
+        border-radius: 5px;
+        overflow-x: auto;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+    }
+    .table-rouge table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .table-rouge th {
+        background-color: #CC0000;
+        color: white;
+        padding: 6px 10px;
+        text-align: center;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .table-rouge td {
+        padding: 5px 10px;
+        text-align: center;
+        border: 1px solid #e0e0e0;
+    }
+    .table-rouge td:first-child {
+        text-align: left;
+        font-weight: bold;
+    }
+    .table-rouge tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .table-rouge tr:hover {
+        background-color: #f0f0f0;
     }
     
     /* Tableau compact coefficient global */
@@ -339,7 +370,38 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     return coeffs_normalises
 
 # --------------------------------------------------------------------
-# 7. CHARGEMENT DU FICHIER
+# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML AVEC EN-TÊTES ROUGES
+# --------------------------------------------------------------------
+def generer_tableau_html(pivot_df):
+    """Génère un tableau HTML avec entêtes rouges en gras."""
+    noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Total']
+    
+    html = '<div class="table-rouge" style="max-height: 600px; overflow-y: auto;"><table>'
+    
+    # En-tête
+    html += '<tr>'
+    html += '<th style="position: sticky; top: 0; left: 0; z-index: 20; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Article / Agence</th>'
+    for col in pivot_df.columns:
+        html += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: center;">{col}</th>'
+    html += '</tr>'
+    
+    # Lignes de données
+    for idx, row in pivot_df.iterrows():
+        html += '<tr>'
+        # Première colonne (index combiné)
+        index_str = ' | '.join([str(x) for x in idx]) if isinstance(idx, tuple) else str(idx)
+        html += f'<td style="text-align: left; font-weight: bold; padding: 5px 8px;">{index_str}</td>'
+        for col in pivot_df.columns:
+            val = row[col]
+            html += f'<td style="padding: 5px 8px; text-align: center;">{val:.2f}</td>'
+        html += '</tr>'
+    
+    html += '</table></div>'
+    
+    return html
+
+# --------------------------------------------------------------------
+# 8. CHARGEMENT DU FICHIER
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
@@ -359,7 +421,7 @@ if df_brut.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 8. FILTRES
+# 9. FILTRES
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
@@ -387,7 +449,7 @@ if df_brut_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 9. CALCUL DES COEFFICIENTS
+# 10. CALCUL DES COEFFICIENTS
 # --------------------------------------------------------------------
 df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre, annees=[2024, 2025])
 
@@ -398,10 +460,11 @@ if df_coefficients.empty:
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
-# 10. TABLEAU PIVOT DES COEFFICIENTS PAR ARTICLE-AGENCE
+# 11. TABLEAU PRINCIPAL (HTML avec entêtes rouges)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
+# Créer le pivot
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
     columns='mois',
@@ -417,11 +480,12 @@ pivot.columns = noms_mois
 
 pivot['Total'] = pivot.sum(axis=1)
 
-# Afficher le tableau avec entêtes en rouge gras (via CSS)
-st.dataframe(pivot, width='stretch', height=600)
+# Afficher le tableau en HTML avec entêtes rouges
+html_tableau = generer_tableau_html(pivot)
+st.markdown(html_tableau, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 11. COEFFICIENT GLOBAL PAR MOIS (tableau 2 lignes avec entêtes rouges)
+# 12. COEFFICIENT GLOBAL PAR MOIS (tableau 2 lignes avec entêtes rouges)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
@@ -451,7 +515,7 @@ else:
     coefs_globaux = {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 12. GRAPHIQUE
+# 13. GRAPHIQUE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 
@@ -480,13 +544,13 @@ fig.update_layout(
 st.plotly_chart(fig, width='stretch')
 
 # --------------------------------------------------------------------
-# 13. INTERPRÉTATION IA
+# 14. INTERPRÉTATION IA
 # --------------------------------------------------------------------
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 14. TÉLÉCHARGEMENT
+# 15. TÉLÉCHARGEMENT
 # --------------------------------------------------------------------
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
 st.download_button(
