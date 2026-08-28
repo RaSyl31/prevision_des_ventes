@@ -178,47 +178,32 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 3. INTERPRÉTATION SIMPLE ET CLAIRE
+# 3. INTERPRÉTATION DU GRAPHIQUE (coefficients globaux)
 # --------------------------------------------------------------------
-def interpreter_resultats_simple(df_filtre, coefs_globaux=None):
-    if df_filtre.empty:
+def interpreter_graphe(coefs_globaux):
+    if not coefs_globaux:
         return "Aucune donnée à interpréter."
-
     noms_mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-    
-    # Moyenne mensuelle globale (basée sur les coefficients déjà calculés)
-    moyennes = df_filtre.groupby('mois')['coefficient'].mean().reindex(range(1,13), fill_value=0)
-    mois_fort = moyennes.idxmax()
-    mois_faible = moyennes.idxmin()
-    amplitude = moyennes.max() - moyennes.min()
+    valeurs = [coefs_globaux.get(m, 0) for m in range(1, 13)]
+    mois_fort = int(np.argmax(valeurs)) + 1
+    mois_faible = int(np.argmin(valeurs)) + 1
+    amplitude = max(valeurs) - min(valeurs)
 
-    # Top 3 articles les plus saisonniers
-    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False).head(3)
-    top_articles = list(variabilite.index)
-
-    # Construction du texte
-    lignes = []
-    lignes.append(f"**📈 Mois le plus fort :** {noms_mois[mois_fort-1]} (coefficient {moyennes[mois_fort]:.2f})")
-    lignes.append(f"**📉 Mois le plus faible :** {noms_mois[mois_faible-1]} (coefficient {moyennes[mois_faible]:.2f})")
-    lignes.append(f"**📊 Amplitude saisonnière :** {amplitude:.2f}")
+    texte = []
+    texte.append(f"**📈 Pic :** {noms_mois[mois_fort-1]} (coefficient {max(valeurs):.2f})")
+    texte.append(f"**📉 Creux :** {noms_mois[mois_faible-1]} (coefficient {min(valeurs):.2f})")
+    texte.append(f"**📊 Amplitude :** {amplitude:.2f}")
     if amplitude > 1.0:
-        lignes.append("→ Forte variation saisonnière : prévoir une gestion flexible des stocks.")
+        texte.append("→ Forte variation saisonnière.")
     elif amplitude > 0.5:
-        lignes.append("→ Variation modérée : planification standard suffisante.")
+        texte.append("→ Variation modérée.")
     else:
-        lignes.append("→ Variation faible : demande assez stable.")
-    
-    if top_articles:
-        lignes.append(f"\n**🔍 Articles les plus saisonniers :**")
-        for i, art in enumerate(top_articles, 1):
-            lignes.append(f"   {i}. {art}")
-    
-    lignes.append("\n**💡 Recommandations :**")
-    lignes.append(f"   • Renforcer les stocks avant **{noms_mois[mois_fort-1]}**.")
-    lignes.append(f"   • Lancer des promotions pendant **{noms_mois[mois_faible-1]}** pour stimuler la demande.")
-
-    return "\n".join(lignes)
+        texte.append("→ Variation faible.")
+    texte.append("\n**💡 Recommandations :**")
+    texte.append(f"• Prévoir des stocks suffisants avant **{noms_mois[mois_fort-1]}**.")
+    texte.append(f"• Envisager des actions promotionnelles en **{noms_mois[mois_faible-1]}**.")
+    return "\n".join(texte)
 
 # --------------------------------------------------------------------
 # 4. CHARGEMENT DES DONNÉES BRUTES
@@ -229,13 +214,11 @@ def charger_donnees_brutes(file_bytes, filename):
         df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
     else:
         df_raw = pd.read_excel(BytesIO(file_bytes))
-    
     required_cols = ['Année', 'Mois année', 'Segments', 'Marque', 'Format', 'Agences', 'Contenance', 'Articles', 'Vente hl direct']
     missing_cols = [col for col in required_cols if col not in df_raw.columns]
     if missing_cols:
         st.error(f"Colonnes manquantes : {missing_cols}")
         st.stop()
-    
     df = df_raw.copy()
     df = df[df['Articles'].notna()]
     df = df[~df['Articles'].astype(str).str.contains('Total', case=False, na=False)]
@@ -245,7 +228,6 @@ def charger_donnees_brutes(file_bytes, filename):
     df = df[~df['Mois année'].astype(str).str.contains('Total', case=False, na=False)]
     df = df[df['Agences'].notna()]
     df = df[~df['Agences'].astype(str).str.contains('Total', case=False, na=False)]
-    
     df.rename(columns={
         'Segments': 'segment',
         'Marque': 'marque',
@@ -255,7 +237,6 @@ def charger_donnees_brutes(file_bytes, filename):
         'Articles': 'Référence',
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
-    
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
@@ -264,7 +245,6 @@ def charger_donnees_brutes(file_bytes, filename):
     df['mois_num'] = pd.to_numeric(df['mois_num'], errors='coerce')
     df = df.dropna(subset=['mois_num'])
     df['mois_num'] = df['mois_num'].astype(int)
-    
     return df
 
 # --------------------------------------------------------------------
@@ -274,11 +254,9 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
     df_periode = df_brut[df_brut['Année'].isin(annees)]
     if df_periode.empty:
         return pd.DataFrame()
-    
     group_cols = ['segment', 'marque', 'format', 'contenances', 'Référence', 'agence']
     moyenne_generale = df_periode.groupby(group_cols)['ventes_hecto'].mean()
     moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['mois_num']])['ventes_hecto'].mean()
-    
     resultats = []
     for (keys, moyenne_gen) in moyenne_generale.items():
         if moyenne_gen <= 0:
@@ -339,8 +317,9 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
             coeffs_finaux[mois] = coeff
             somme_arrondie += coeff
         coeffs_finaux[12] = round(12 - somme_arrondie, 2)
-        if abs(sum(coeffs_finaux.values()) - 12) > 0.01:
-            coeffs_finaux[12] = round(coeffs_finaux[12] + (12 - sum(coeffs_finaux.values())), 2)
+        somme_finale = sum(coeffs_finaux.values())
+        if abs(somme_finale - 12) > 0.01:
+            coeffs_finaux[12] = round(coeffs_finaux[12] + (12 - somme_finale), 2)
         return coeffs_finaux
     else:
         return {m: 0 for m in range(1, 13)}
@@ -398,27 +377,45 @@ if df_brut.empty:
     st.warning("Aucune donnée valide trouvée.")
     st.stop()
 
-# Filtres
+# --------------------------------------------------------------------
+# FILTRES INTERACTIFS EN CASCADE
+# --------------------------------------------------------------------
 st.sidebar.header("Filtres")
+
+# 1. Agence (toutes les agences disponibles)
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
-segments_options = sorted(df_brut['segment'].unique())
+
+# 2. Segment (selon les agences sélectionnées)
+df_temp = df_brut[df_brut['agence'].isin(selected_agences)] if selected_agences else df_brut
+segments_options = sorted(df_temp['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-articles_options = sorted(df_brut['Référence'].unique())
-selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
-marques_options = sorted(df_brut['marque'].unique())
+
+# 3. Marque (selon les segments et agences sélectionnés)
+df_temp = df_temp[df_temp['segment'].isin(selected_segments)] if selected_segments else df_temp
+marques_options = sorted(df_temp['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
+# 4. Article (selon les marques, segments et agences sélectionnés)
+df_temp = df_temp[df_temp['marque'].isin(selected_marques)] if selected_marques else df_temp
+articles_options = sorted(df_temp['Référence'].unique())
+selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
+
+# Appliquer tous les filtres
 df_brut_filtre = df_brut[
     (df_brut['agence'].isin(selected_agences)) &
     (df_brut['segment'].isin(selected_segments)) &
-    (df_brut['Référence'].isin(selected_articles)) &
-    (df_brut['marque'].isin(selected_marques))
+    (df_brut['marque'].isin(selected_marques)) &
+    (df_brut['Référence'].isin(selected_articles))
 ]
+
 if df_brut_filtre.empty:
     st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
 
+# --------------------------------------------------------------------
+# CALCULS
+# --------------------------------------------------------------------
 df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre)
 if df_coefficients.empty:
     st.warning("Aucun coefficient calculé pour les filtres sélectionnés.")
@@ -442,7 +439,6 @@ pivot = pivot.reindex(columns=mois_cols)
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
 pivot['Total'] = pivot.sum(axis=1)
-
 st.markdown(generer_tableau_html(pivot), unsafe_allow_html=True)
 
 # Coefficient global
@@ -480,9 +476,9 @@ fig.update_layout(title="Coefficients de saisonnalité globaux par mois (calcul 
                   yaxis=dict(showgrid=True, gridcolor='lightgray'))
 st.plotly_chart(fig, width='stretch')
 
-# Interprétation simple et claire
+# Interprétation basée uniquement sur le graphique
 st.markdown("### 🤖 Interprétation et Recommandations")
-st.markdown(interpreter_resultats_simple(df_coefficients, coefs_globaux))
+st.markdown(interpreter_graphe(coefs_globaux))
 
 # Téléchargement
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
