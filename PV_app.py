@@ -130,33 +130,77 @@ AGENCES = [
 
 SEGMENTS = ["1-BIERES", "2-BG", "3-EAUX", "5-ALCOMIX", "7-VIN"]
 
+# Liste des articles actifs (sans les titres de regroupement)
 ARTICLES_ACTIFS = [
-    "Booster Appel-Mix 50CL VER", "Booster Tornado 50CL VER VER",
-    "Caprice Ananas 100 cl VER", "Caprice Ananas 150 cl PET", "Caprice Ananas 30 cl VER",
-    "Caprice Bonbon Anglais 100 cl VER", "Caprice Bonbon Anglais 150 cl PET",
-    "Caprice Bonbon Anglais 30 cl VER", "Caprice Bonbon Anglais 35 cl PET",
-    "Caprice Bonbon Anglais 50 cl PET", "Caprice Grenadine 100 cl VER",
-    "Caprice Grenadine 150 cl PET", "Caprice Grenadine 30 cl VER",
-    "Caprice Grenadine 33 cl CAN", "Caprice Grenadine 35 cl PET", "Caprice Grenadine 50 cl PET",
-    "Caprice Orange 100 cl VER", "Caprice Orange 150 cl PET", "Caprice Orange 30 cl VER",
-    "Caprice Orange 33 cl CAN", "Caprice Orange 35 cl PET", "Caprice Orange 50 cl PET",
-    "Caprice Bonbon Anglais 33 cl CAN", "Caprice Citron 100 cl VER",
-    "Caprice Citron 150 cl PET", "Caprice Citron 30 cl VER", "Caprice Citron 50 cl PET",
-    "Tonic 100 cl VER", "Tonic 30 cl VER",
-    "World Cola 100cl VER", "World Cola 100cl WOCO VER", "World Cola 150cl PET",
-    "World Cola 30cl VER", "World Cola 30cl WOCO VER", "World Cola 33 cl CAN",
-    "World Cola 35cl PET", "World Cola 50cl PET",
-    "Beaufort 33 CL CAN", "Beaufort 33CL VER",
-    "FRESH 33 cl CAN", "THB Fresh 33 cl VER", "THB Fresh 65 cl VER",
-    "Gold 8 50 cl CAN", "Gold 8 50 cl VER", "Gold Blanche 33cl VER",
-    "Gold Blanche 50 cl CAN", "Gold Blanche 50 cl VER", "Gold Blonde 33 cl VER",
-    "Gold Blonde 50 cl CAN", "Gold Blonde 50 cl VER", "Gold Blonde 65 cl VER",
-    "Queen s 65 cl VER", "THB Pilsener 33 cl VER", "THB Pilsener 50 cl CAN",
+    "Booster Appel-Mix 50CL VER",
+    "Booster Tornado 50CL VER VER",
+    "Caprice Ananas 100 cl VER",
+    "Caprice Ananas 150 cl PET",
+    "Caprice Ananas 30 cl VER",
+    "Caprice Bonbon Anglais 100 cl VER",
+    "Caprice Bonbon Anglais 150 cl PET",
+    "Caprice Bonbon Anglais 30 cl VER",
+    "Caprice Bonbon Anglais 35 cl PET",
+    "Caprice Bonbon Anglais 50 cl PET",
+    "Caprice Grenadine 100 cl VER",
+    "Caprice Grenadine 150 cl PET",
+    "Caprice Grenadine 30 cl VER",
+    "Caprice Grenadine 33 cl CAN",
+    "Caprice Grenadine 35 cl PET",
+    "Caprice Grenadine 50 cl PET",
+    "Caprice Orange 100 cl VER",
+    "Caprice Orange 150 cl PET",
+    "Caprice Orange 30 cl VER",
+    "Caprice Orange 33 cl CAN",
+    "Caprice Orange 35 cl PET",
+    "Caprice Orange 50 cl PET",
+    "Caprice Bonbon Anglais 33 cl CAN",
+    "Caprice Citron 100 cl VER",
+    "Caprice Citron 150 cl PET",
+    "Caprice Citron 30 cl VER",
+    "Caprice Citron 50 cl PET",
+    "Tonic 100 cl VER",
+    "Tonic 30 cl VER",
+    "World Cola 100cl VER",
+    "World Cola 100cl WOCO VER",
+    "World Cola 150cl PET",
+    "World Cola 30cl VER",
+    "World Cola 30cl WOCO VER",
+    "World Cola 33 cl CAN",
+    "World Cola 35cl PET",
+    "World Cola 50cl PET",
+    "Beaufort 33 CL CAN",
+    "Beaufort 33CL VER",
+    "FRESH 33 cl CAN",
+    "THB Fresh 33 cl VER",
+    "THB Fresh 65 cl VER",
+    "Gold 8 50 cl CAN",
+    "Gold 8 50 cl VER",
+    "Gold Blanche 33cl VER",
+    "Gold Blanche 50 cl CAN",
+    "Gold Blanche 50 cl VER",
+    "Gold Blonde 33 cl VER",
+    "Gold Blonde 50 cl CAN",
+    "Gold Blonde 50 cl VER",
+    "Gold Blonde 65 cl VER",
+    "Queen s 65 cl VER",
+    "THB Pilsener 33 cl VER",
+    "THB Pilsener 50 cl CAN",
     "THB Pilsener 65 cl VER",
-    "Cristal 100 cl VER", "Cristal 150 cl PET", "Cristal 30 cl VER", "Cristal 50 cl VER",
-    "Cristalline 100 cl PET", "Cristalline 200 cl PET",
-    "Eau vive 150 cl PET", "Eau vive 50 cl PET", "Eau vive 50 cl VER",
-    "FOSA 50 cl CAN", "XXL 30cl BOB VER", "XXL 30cl VER", "XXL 33 cl CAN", "XXL 35cl PET"
+    "Cristal 100 cl VER",
+    "Cristal 150 cl PET",
+    "Cristal 30 cl VER",
+    "Cristal 50 cl VER",
+    "Cristalline 100 cl PET",
+    "Cristalline 200 cl PET",
+    "Eau vive 150 cl PET",
+    "Eau vive 50 cl PET",
+    "Eau vive 50 cl VER",
+    "FOSA 50 cl CAN",
+    "XXL 30cl BOB VER",
+    "XXL 30cl VER",
+    "XXL 33 cl CAN",
+    "XXL 35cl PET"
 ]
 
 MARQUES = [
@@ -178,73 +222,93 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 3. FONCTION D'INTERPRÉTATION IA
+# 3. FONCTION D'INTERPRÉTATION LOCALE AVANCÉE
 # --------------------------------------------------------------------
-def interpreter_resultats(df_filtre):
+def interpreter_resultats_avance(df_filtre, coefs_globaux=None):
     if df_filtre.empty:
         return "Aucune donnée à interpréter."
-    
-    interpretations = []
-    noms_mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+
+    noms_mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-    
-    moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean()
-    mois_tres_forts = moyennes_par_mois[moyennes_par_mois > 1.2].index.tolist()
-    mois_forts = moyennes_par_mois[(moyennes_par_mois > 1.05) & (moyennes_par_mois <= 1.2)].index.tolist()
-    mois_normaux = moyennes_par_mois[(moyennes_par_mois >= 0.95) & (moyennes_par_mois <= 1.05)].index.tolist()
-    mois_faibles = moyennes_par_mois[(moyennes_par_mois >= 0.8) & (moyennes_par_mois < 0.95)].index.tolist()
-    mois_tres_faibles = moyennes_par_mois[moyennes_par_mois < 0.8].index.tolist()
-    
-    interpretations.append("### 📊 Analyse Globale de la Saisonnalité")
-    if mois_tres_forts:
-        interpretations.append(f"🔴 **Pics majeurs** : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
-    if mois_forts:
-        interpretations.append(f"🟠 **Mois dynamiques** : {', '.join([noms_mois[m-1] for m in mois_forts])}")
-    if mois_normaux:
-        interpretations.append(f"🟢 **Mois stables** : {', '.join([noms_mois[m-1] for m in mois_normaux])}")
-    if mois_faibles:
-        interpretations.append(f"🟡 **Mois calmes** : {', '.join([noms_mois[m-1] for m in mois_faibles])}")
-    if mois_tres_faibles:
-        interpretations.append(f"🔵 **Creux majeurs** : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
-    
-    interpretations.append("\n### 🏭 Analyse par Segment")
+    interpretations = []
+
+    # Analyse globale
+    moyennes_par_mois = df_filtre.groupby('mois')['coefficient'].mean().reindex(range(1,13), fill_value=0)
+    tres_forts = [m for m in range(1,13) if moyennes_par_mois[m] > 1.2]
+    forts = [m for m in range(1,13) if 1.05 < moyennes_par_mois[m] <= 1.2]
+    normaux = [m for m in range(1,13) if 0.95 <= moyennes_par_mois[m] <= 1.05]
+    faibles = [m for m in range(1,13) if 0.8 <= moyennes_par_mois[m] < 0.95]
+    tres_faibles = [m for m in range(1,13) if moyennes_par_mois[m] < 0.8]
+
+    interpretations.append("## 📊 Analyse Globale de la Saisonnalité")
+    if tres_forts:
+        interpretations.append(f"🔴 **Pics majeurs** : {', '.join([noms_mois[m-1] for m in tres_forts])}")
+    if forts:
+        interpretations.append(f"🟠 **Mois dynamiques** : {', '.join([noms_mois[m-1] for m in forts])}")
+    if normaux:
+        interpretations.append(f"🟢 **Mois stables** : {', '.join([noms_mois[m-1] for m in normaux])}")
+    if faibles:
+        interpretations.append(f"🟡 **Mois calmes** : {', '.join([noms_mois[m-1] for m in faibles])}")
+    if tres_faibles:
+        interpretations.append(f"🔵 **Creux majeurs** : {', '.join([noms_mois[m-1] for m in tres_faibles])}")
+
+    # Amplitude saisonnière
+    amplitude_globale = moyennes_par_mois.max() - moyennes_par_mois.min()
+    interpretations.append(f"\n**Amplitude saisonnière globale** : {amplitude_globale:.2f}")
+    if amplitude_globale > 1.5:
+        interpretations.append("→ Forte saisonnalité : variations importantes au cours de l'année.")
+    elif amplitude_globale > 0.5:
+        interpretations.append("→ Saisonnalité modérée : variations notables mais gérables.")
+    else:
+        interpretations.append("→ Faible saisonnalité : la demande est relativement stable.")
+
+    # Analyse par segment
+    interpretations.append("\n## 🏭 Analyse par Segment")
     for segment in sorted(df_filtre['segment'].unique()):
         df_seg = df_filtre[df_filtre['segment'] == segment]
-        moy_seg = df_seg.groupby('mois')['coefficient'].mean()
+        moy_seg = df_seg.groupby('mois')['coefficient'].mean().reindex(range(1,13), fill_value=0)
         pic = moy_seg.idxmax()
         creux = moy_seg.idxmin()
-        amplitude = moy_seg.max() - moy_seg.min()
-        interpretations.append(f"**{segment}** : Pic en {noms_mois[pic-1]} (coef {moy_seg[pic]:.2f}), Creux en {noms_mois[creux-1]} (coef {moy_seg[creux]:.2f}), Amplitude {amplitude:.2f}")
-    
-    interpretations.append("\n### 🏷️ Analyse par Marque")
+        amplitude_seg = moy_seg.max() - moy_seg.min()
+        cv = moy_seg.std() / moy_seg.mean() if moy_seg.mean() != 0 else 0
+        interpretations.append(f"**{segment}** :")
+        interpretations.append(f"   - Pic : {noms_mois[pic-1]} (coef {moy_seg[pic]:.2f})")
+        interpretations.append(f"   - Creux : {noms_mois[creux-1]} (coef {moy_seg[creux]:.2f})")
+        interpretations.append(f"   - Amplitude : {amplitude_seg:.2f}")
+        interpretations.append(f"   - Volatilité : {cv:.2f} ({'forte' if cv>0.3 else 'modérée' if cv>0.15 else 'faible'})")
+
+    # Analyse par marque
+    interpretations.append("\n## 🏷️ Analyse par Marque")
     for marque in sorted(df_filtre['marque'].unique()):
         df_marque = df_filtre[df_filtre['marque'] == marque]
-        moy_marque = df_marque.groupby('mois')['coefficient'].mean()
+        moy_marque = df_marque.groupby('mois')['coefficient'].mean().reindex(range(1,13), fill_value=0)
         pic = moy_marque.idxmax()
         taux_variation = (moy_marque.max() - moy_marque.min()) / moy_marque.min() * 100 if moy_marque.min() > 0 else 0
-        interpretations.append(f"**{marque}** : Pic en {noms_mois[pic-1]}, Variation saisonnière de {taux_variation:.0f}%")
-    
-    interpretations.append("\n### 🔍 Articles les Plus Saisonniers")
-    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False).head(3)
+        interpretations.append(f"**{marque}** : pic en {noms_mois[pic-1]}, variation saisonnière de {taux_variation:.0f}%")
+
+    # Articles les plus saisonniers
+    interpretations.append("\n## 🔍 Articles les Plus Saisonniers")
+    variabilite = df_filtre.groupby('Référence')['coefficient'].std().sort_values(ascending=False).head(5)
     for i, (article, std) in enumerate(variabilite.items(), 1):
         df_article = df_filtre[df_filtre['Référence'] == article]
         moy_article = df_article.groupby('mois')['coefficient'].mean()
         pic = moy_article.idxmax()
         creux = moy_article.idxmin()
-        interpretations.append(f"{i}. **{article}** : Pic en {noms_mois[pic-1]}, Creux en {noms_mois[creux-1]}")
-    
-    interpretations.append("\n### 💡 Recommandations Stratégiques")
-    interpretations.append("**📦 Gestion des Stocks :**")
-    if mois_tres_forts:
-        interpretations.append(f"   - Augmenter les stocks de sécurité avant : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
-    if mois_tres_faibles:
-        interpretations.append(f"   - Réduire les commandes pendant : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
-    interpretations.append("**📣 Actions Marketing :**")
-    if mois_tres_faibles:
-        interpretations.append(f"   - Promotions pour stimuler la demande en : {', '.join([noms_mois[m-1] for m in mois_tres_faibles])}")
-    if mois_tres_forts:
-        interpretations.append(f"   - Capitaliser sur la demande naturelle en : {', '.join([noms_mois[m-1] for m in mois_tres_forts])}")
-    
+        interpretations.append(f"{i}. **{article}** : pic en {noms_mois[pic-1]}, creux en {noms_mois[creux-1]}")
+
+    # Recommandations
+    interpretations.append("\n## 💡 Recommandations Opérationnelles")
+    interpretations.append("**📦 Stocks** :")
+    if tres_forts:
+        interpretations.append(f"   - Renforcer les stocks de sécurité de 20-30% avant : {', '.join([noms_mois[m-1] for m in tres_forts])}")
+    if tres_faibles:
+        interpretations.append(f"   - Réduire les commandes de 15-20% pendant : {', '.join([noms_mois[m-1] for m in tres_faibles])}")
+    interpretations.append("**📣 Marketing** :")
+    if tres_faibles:
+        interpretations.append(f"   - Promotions ciblées en : {', '.join([noms_mois[m-1] for m in tres_faibles])}")
+    if tres_forts:
+        interpretations.append(f"   - Capitaliser sur la demande naturelle en : {', '.join([noms_mois[m-1] for m in tres_forts])}")
+
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
@@ -299,7 +363,6 @@ def charger_donnees_brutes(file_bytes, filename):
 # --------------------------------------------------------------------
 def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
     df_periode = df_brut[df_brut['Année'].isin(annees)]
-    
     if df_periode.empty:
         return pd.DataFrame()
     
@@ -308,17 +371,14 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
     moyenne_par_mois = df_periode.groupby(group_cols + [df_periode['mois_num']])['ventes_hecto'].mean()
     
     resultats = []
-    
     for (keys, moyenne_gen) in moyenne_generale.items():
         if moyenne_gen <= 0:
             continue
-        
         coeffs = {}
         for mois in range(1, 13):
             key_with_month = keys + (mois,)
             moyenne_mois = moyenne_par_mois.get(key_with_month, 0)
             coeffs[mois] = moyenne_mois / moyenne_gen if moyenne_gen > 0 else 0
-        
         somme_coeffs = sum(coeffs.values())
         if somme_coeffs > 0:
             coeffs_norm = {m: (c / somme_coeffs) * 12 for m, c in coeffs.items()}
@@ -332,7 +392,6 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
             somme_finale = sum(coeffs_arrondis.values())
             if abs(somme_finale - 12) > 0.01:
                 coeffs_arrondis[12] = round(coeffs_arrondis[12] + (12 - somme_finale), 2)
-            
             for mois in range(1, 13):
                 resultats.append({
                     'segment': keys[0],
@@ -344,23 +403,18 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
                     'mois': mois,
                     'coefficient': coeffs_arrondis[mois]
                 })
-    
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 6. CALCUL DU COEFFICIENT GLOBAL (avec somme exacte = 12)
+# 6. CALCUL DU COEFFICIENT GLOBAL
 # --------------------------------------------------------------------
 def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     df_periode = df_brut_filtre[df_brut_filtre['Année'].isin(annees)]
-    
     if df_periode.empty:
         return None
-    
     moyenne_generale = df_periode['ventes_hecto'].mean()
-    
     if moyenne_generale <= 0:
         return None
-    
     coeffs_bruts = {}
     for mois in range(1, 13):
         ventes_mois = df_periode[df_periode['mois_num'] == mois]['ventes_hecto']
@@ -369,117 +423,87 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         else:
             moyenne_mois = 0
         coeffs_bruts[mois] = moyenne_mois / moyenne_generale
-    
     somme_coeffs = sum(coeffs_bruts.values())
     if somme_coeffs > 0:
         coeffs_norm = {m: (c / somme_coeffs) * 12 for m, c in coeffs_bruts.items()}
-        
         coeffs_finaux = {}
         somme_arrondie = 0
         for mois in range(1, 12):
             coeff = round(coeffs_norm[mois], 2)
             coeffs_finaux[mois] = coeff
             somme_arrondie += coeff
-        
         coeffs_finaux[12] = round(12 - somme_arrondie, 2)
-        
         somme_finale = sum(coeffs_finaux.values())
         if abs(somme_finale - 12) > 0.01:
             coeffs_finaux[12] = round(coeffs_finaux[12] + (12 - somme_finale), 2)
-        
         return coeffs_finaux
     else:
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML
+# 7. GÉNÉRATION DU TABLEAU HTML
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df):
     html = '<div class="table-rouge"><table>'
-    
     html += '<tr>'
-    html += '<th style="position: sticky; top: 0; left: 0; z-index: 20; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Segment</th>'
-    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Marque</th>'
-    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Format</th>'
-    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Contenance</th>'
-    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Article</th>'
-    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Agence</th>'
-    
+    html += '<th style="position: sticky; top:0; left:0; z-index:20; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Format</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Contenance</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Article</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Agence</th>'
     for col in pivot_df.columns:
-        html += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: center;">{col}</th>'
+        html += f'<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:center;">{col}</th>'
     html += '</tr>'
-    
     for idx, row in pivot_df.iterrows():
         html += '<tr>'
-        
         if isinstance(idx, tuple):
-            segment_val = idx[0]
-            marque_val = idx[1]
-            format_val = idx[2]
-            contenance_val = idx[3]
-            article_val = idx[4]
-            agence_val = idx[5]
+            vals = list(idx) + [''] * (6 - len(idx))
+            segment_val, marque_val, format_val, contenance_val, article_val, agence_val = vals
         else:
-            segment_val = idx
-            marque_val = ''
-            format_val = ''
-            contenance_val = ''
-            article_val = ''
-            agence_val = ''
-        
-        html += f'<td style="text-align: left; padding: 5px 8px; font-weight: bold;">{segment_val}</td>'
-        html += f'<td style="text-align: left; padding: 5px 8px;">{marque_val}</td>'
-        html += f'<td style="text-align: left; padding: 5px 8px;">{format_val}</td>'
-        html += f'<td style="text-align: left; padding: 5px 8px;">{contenance_val}</td>'
-        html += f'<td style="text-align: left; padding: 5px 8px;">{article_val}</td>'
-        html += f'<td style="text-align: left; padding: 5px 8px;">{agence_val}</td>'
-        
+            segment_val, marque_val, format_val, contenance_val, article_val, agence_val = idx, '', '', '', '', ''
+        html += f'<td style="text-align:left; padding:5px 8px; font-weight:bold;">{segment_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{marque_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{format_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{contenance_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{article_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{agence_val}</td>'
         for col in pivot_df.columns:
             val = row[col]
             if pd.notna(val):
-                html += f'<td style="padding: 5px 8px; text-align: center;">{val:.2f}</td>'
+                html += f'<td style="padding:5px 8px; text-align:center;">{val:.2f}</td>'
             else:
-                html += '<td style="padding: 5px 8px; text-align: center;">-</td>'
+                html += '<td style="padding:5px 8px; text-align:center;">-</td>'
         html += '</tr>'
-    
     html += '</table></div>'
-    
     return html
 
 # --------------------------------------------------------------------
-# 8. CHARGEMENT DU FICHIER
+# 8. APPLICATION PRINCIPALE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficients de Saisonnalité par Article et Agence</span>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Choisissez le fichier historique (Excel ou CSV)", type=["xlsx", "csv"])
-
 if uploaded_file is None:
     st.info("Veuillez téléverser un fichier Excel (.xlsx) ou CSV contenant les colonnes : Année, Mois année, Segments, Marque, Format, Agences, Contenance, Articles, Vente hl direct")
     st.stop()
 
 file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
-
 df_brut = charger_donnees_brutes(file_bytes, filename)
 
 if df_brut.empty:
     st.warning("Aucune donnée valide trouvée.")
     st.stop()
 
-# --------------------------------------------------------------------
-# 9. FILTRES
-# --------------------------------------------------------------------
+# Filtres
 st.sidebar.header("Filtres")
-
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
-
 segments_options = sorted(df_brut['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
-
 articles_options = sorted(df_brut['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
-
 marques_options = sorted(df_brut['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
@@ -489,125 +513,78 @@ df_brut_filtre = df_brut[
     (df_brut['Référence'].isin(selected_articles)) &
     (df_brut['marque'].isin(selected_marques))
 ]
-
 if df_brut_filtre.empty:
     st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
 
-# --------------------------------------------------------------------
-# 10. CALCUL DES COEFFICIENTS
-# --------------------------------------------------------------------
-df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre, annees=[2024, 2025])
-
+df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre)
 if df_coefficients.empty:
     st.warning("Aucun coefficient calculé pour les filtres sélectionnés.")
     st.stop()
 
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
-# --------------------------------------------------------------------
-# 11. GROS TITRE "Saisonnalité par Article"
-# --------------------------------------------------------------------
+# Gros titre
 st.markdown('<span class="gros-titre-blanc">📊 Saisonnalité par Article</span>', unsafe_allow_html=True)
 
-# --------------------------------------------------------------------
-# 12. TABLEAU PRINCIPAL
-# --------------------------------------------------------------------
+# Tableau principal
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
-
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
     columns='mois',
     values='coefficient',
     aggfunc='first'
 )
-
 mois_cols = list(range(1, 13))
 pivot = pivot.reindex(columns=mois_cols)
-
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
-
 pivot['Total'] = pivot.sum(axis=1)
 
 html_tableau = generer_tableau_html(pivot)
 st.markdown(html_tableau, unsafe_allow_html=True)
 
-# --------------------------------------------------------------------
-# 13. COEFFICIENT GLOBAL PAR MOIS (avec Total = 12)
-# --------------------------------------------------------------------
+# Coefficient global
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
-
-coefs_globaux = calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025])
-
+coefs_globaux = calculer_coefficient_global(df_brut_filtre)
 if coefs_globaux:
     noms_mois_courts = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
     coefs_values = [coefs_globaux.get(m, 0) for m in range(1, 13)]
     total_global = sum(coefs_values)
-    
-    html_table = '<div class="coef-global-table">'
-    html_table += '<table>'
-    html_table += '<tr>'
-    html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Mois</th>'
+    html_table = '<div class="coef-global-table"><table>'
+    html_table += '<tr><th style="background-color:#CC0000; color:white; font-weight:bold; padding:5px 10px;">Mois</th>'
     for m in noms_mois_courts:
-        html_table += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">{m}</th>'
-    html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Total</th>'
-    html_table += '</tr>'
-    html_table += '<tr>'
-    html_table += '<td style="font-weight: bold; background-color: #E3F2FD; padding: 5px 10px;">Coefficient</td>'
+        html_table += f'<th style="background-color:#CC0000; color:white; font-weight:bold; padding:5px 10px;">{m}</th>'
+    html_table += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:5px 10px;">Total</th></tr>'
+    html_table += '<tr><td style="font-weight:bold; background-color:#E3F2FD; padding:5px 10px;">Coefficient</td>'
     for v in coefs_values:
-        html_table += f'<td style="background-color: white; padding: 5px 10px; text-align: center;">{v:.2f}</td>'
-    html_table += f'<td style="background-color: #E3F2FD; font-weight: bold; padding: 5px 10px; text-align: center;">{total_global:.2f}</td>'
-    html_table += '</tr>'
+        html_table += f'<td style="background-color:white; padding:5px 10px; text-align:center;">{v:.2f}</td>'
+    html_table += f'<td style="background-color:#E3F2FD; font-weight:bold; padding:5px 10px; text-align:center;">{total_global:.2f}</td></tr>'
     html_table += '</table></div>'
-    
     st.markdown(html_table, unsafe_allow_html=True)
 else:
-    st.warning("Impossible de calculer le coefficient global pour les filtres sélectionnés.")
+    st.warning("Impossible de calculer le coefficient global.")
     coefs_globaux = {m: 0 for m in range(1, 13)}
 
-# --------------------------------------------------------------------
-# 14. GRAPHIQUE
-# --------------------------------------------------------------------
+# Graphique
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
-
 coefs_norm_list = [coefs_globaux.get(m, 0) for m in range(1, 13)]
-
 fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=noms_mois,
-    y=coefs_norm_list,
-    mode='lines+markers',
-    name='Coefficient global (réel)',
-    line=dict(color='blue', width=2),
-    marker=dict(size=8)
-))
+fig.add_trace(go.Scatter(x=noms_mois, y=coefs_norm_list, mode='lines+markers',
+                         name='Coefficient global (réel)', line=dict(color='blue', width=2), marker=dict(size=8)))
 fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
-fig.update_layout(
-    title="Coefficients de saisonnalité globaux par mois (calcul réel à partir des ventes)",
-    xaxis_title="Mois",
-    yaxis_title="Coefficient",
-    height=500,
-    showlegend=True,
-    plot_bgcolor='white',
-    xaxis=dict(showgrid=True, gridcolor='lightgray'),
-    yaxis=dict(showgrid=True, gridcolor='lightgray')
-)
+fig.update_layout(title="Coefficients de saisonnalité globaux par mois (calcul réel à partir des ventes)",
+                  xaxis_title="Mois", yaxis_title="Coefficient", height=500,
+                  plot_bgcolor='white', xaxis=dict(showgrid=True, gridcolor='lightgray'),
+                  yaxis=dict(showgrid=True, gridcolor='lightgray'))
 st.plotly_chart(fig, width='stretch')
 
-# --------------------------------------------------------------------
-# 15. INTERPRÉTATION IA
-# --------------------------------------------------------------------
+# Interprétation IA locale
 st.markdown("### 🤖 Interprétation et Recommandations")
-st.markdown('<div class="ia-box">' + interpreter_resultats(df_coefficients).replace('\n', '<br>') + '</div>', unsafe_allow_html=True)
+texte_interpretation = interpreter_resultats_avance(df_coefficients, coefs_globaux)
+st.markdown(texte_interpretation)
 
-# --------------------------------------------------------------------
-# 16. TÉLÉCHARGEMENT
-# --------------------------------------------------------------------
+# Téléchargement
 csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="Télécharger les coefficients (CSV)",
-    data=csv,
-    file_name="coefficients_saisonnalite.csv",
-    mime="text/csv"
-)
+st.download_button("Télécharger les coefficients (CSV)", data=csv,
+                   file_name="coefficients_saisonnalite.csv", mime="text/csv")
