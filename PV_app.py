@@ -42,15 +42,39 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    .coef-global-ligne {
+    /* Tableau compact coefficient global */
+    .coef-global-table {
         background-color: #E3F2FD;
-        border-left: 5px solid #2196F3;
-        padding: 8px 12px;
         border-radius: 5px;
+        padding: 8px;
+        overflow-x: auto;
         margin: 5px 0;
+    }
+    .coef-global-table table {
+        border-collapse: collapse;
+        width: 100%;
         font-size: 13px;
         white-space: nowrap;
-        overflow-x: auto;
+    }
+    .coef-global-table th {
+        background-color: #CC0000;
+        color: white;
+        padding: 5px 10px;
+        text-align: center;
+        font-weight: bold;
+    }
+    .coef-global-table td {
+        padding: 5px 10px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+    .coef-global-table .ligne-mois {
+        background-color: #CC0000;
+        color: white;
+        font-weight: bold;
+    }
+    .coef-global-table .ligne-coef {
+        background-color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -203,7 +227,6 @@ def charger_donnees_brutes(file_bytes, filename):
     
     df = df_raw.copy()
     
-    # Filtrer les lignes de détail
     df = df[df['Articles'].notna()]
     df = df[~df['Articles'].astype(str).str.contains('Total', case=False, na=False)]
     df = df[~df['Articles'].astype(str).str.contains('vide', case=False, na=False)]
@@ -213,7 +236,6 @@ def charger_donnees_brutes(file_bytes, filename):
     df = df[df['Agences'].notna()]
     df = df[~df['Agences'].astype(str).str.contains('Total', case=False, na=False)]
     
-    # Renommer les colonnes
     df.rename(columns={
         'Segments': 'segment',
         'Marque': 'marque',
@@ -224,7 +246,6 @@ def charger_donnees_brutes(file_bytes, filename):
         'Vente hl direct': 'ventes_hecto'
     }, inplace=True)
     
-    # Convertir les colonnes
     df['Année'] = pd.to_numeric(df['Année'], errors='coerce')
     df = df.dropna(subset=['Année'])
     df['Année'] = df['Année'].astype(int)
@@ -302,13 +323,11 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     if df_periode.empty:
         return None
     
-    # Moyenne générale = moyenne de toutes les ventes
     moyenne_generale = df_periode['ventes_hecto'].mean()
     
     if moyenne_generale <= 0:
         return None
     
-    # Moyenne par mois
     coeffs = {}
     for mois in range(1, 13):
         ventes_mois = df_periode[df_periode['mois_num'] == mois]['ventes_hecto']
@@ -318,7 +337,6 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
             moyenne_mois = 0
         coeffs[mois] = moyenne_mois / moyenne_generale
     
-    # Normalisation pour que la somme = 12
     somme_coeffs = sum(coeffs.values())
     if somme_coeffs > 0:
         coeffs_normalises = {m: round((c / somme_coeffs) * 12, 2) for m, c in coeffs.items()}
@@ -341,7 +359,6 @@ if uploaded_file is None:
 file_bytes = uploaded_file.getvalue()
 filename = uploaded_file.name
 
-# Charger les données brutes
 df_brut = charger_donnees_brutes(file_bytes, filename)
 
 if df_brut.empty:
@@ -365,7 +382,6 @@ selected_articles = st.sidebar.multiselect("Article", options=articles_options, 
 marques_options = sorted(df_brut['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# Appliquer les filtres aux données brutes
 df_brut_filtre = df_brut[
     (df_brut['agence'].isin(selected_agences)) &
     (df_brut['segment'].isin(selected_segments)) &
@@ -411,7 +427,7 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 11. COEFFICIENT GLOBAL PAR MOIS (format compact - une seule ligne)
+# 11. COEFFICIENT GLOBAL PAR MOIS (tableau 2 lignes avec entêtes rouges)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
@@ -419,15 +435,29 @@ coefs_globaux = calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025])
 
 if coefs_globaux:
     noms_mois_courts = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+    coefs_values = [coefs_globaux.get(m, 0) for m in range(1, 13)]
     
-    # Format ultra compact : une seule ligne horizontale
-    ligne_coefs = "  ".join([f"<strong>{noms_mois_courts[i]}</strong>:{coefs_globaux.get(m, 0):.2f}" for i, m in enumerate(range(1, 13))])
+    # Créer le tableau HTML avec entêtes en gras rouge
+    html_table = '<div class="coef-global-table">'
+    html_table += '<table>'
     
-    st.markdown(f"""
-    <div class="coef-global-ligne">
-        <span style="font-weight: bold; color: #1565C0;">Coef Global :</span> {ligne_coefs}
-    </div>
-    """, unsafe_allow_html=True)
+    # Ligne d'en-tête (mois) en rouge gras
+    html_table += '<tr>'
+    html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Mois</th>'
+    for m in noms_mois_courts:
+        html_table += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">{m}</th>'
+    html_table += '</tr>'
+    
+    # Ligne des coefficients
+    html_table += '<tr>'
+    html_table += '<td style="font-weight: bold; background-color: #E3F2FD; padding: 5px 10px;">Coefficient</td>'
+    for v in coefs_values:
+        html_table += f'<td style="background-color: white; padding: 5px 10px; text-align: center;">{v:.2f}</td>'
+    html_table += '</tr>'
+    
+    html_table += '</table></div>'
+    
+    st.markdown(html_table, unsafe_allow_html=True)
 else:
     st.warning("Impossible de calculer le coefficient global pour les filtres sélectionnés.")
     coefs_globaux = {m: 0 for m in range(1, 13)}
