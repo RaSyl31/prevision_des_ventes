@@ -42,12 +42,15 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    .coef-global-box {
+    .coef-global-ligne {
         background-color: #E3F2FD;
         border-left: 5px solid #2196F3;
-        padding: 15px;
+        padding: 8px 12px;
         border-radius: 5px;
-        margin: 10px 0;
+        margin: 5px 0;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow-x: auto;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -182,7 +185,7 @@ def interpreter_resultats(df_filtre):
     return "\n".join(interpretations)
 
 # --------------------------------------------------------------------
-# 4. CHARGEMENT ET TRAITEMENT DES DONNÉES BRUTES
+# 4. CHARGEMENT DES DONNÉES BRUTES
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_donnees_brutes(file_bytes, filename):
@@ -350,19 +353,15 @@ if df_brut.empty:
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# Agence
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
-# Segment
 segments_options = sorted(df_brut['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
-# Article
 articles_options = sorted(df_brut['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Marque
 marques_options = sorted(df_brut['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
@@ -412,20 +411,23 @@ pivot['Total'] = pivot.sum(axis=1)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
-# 11. COEFFICIENT GLOBAL PAR MOIS (calculé à partir des données brutes)
+# 11. COEFFICIENT GLOBAL PAR MOIS (format compact - une seule ligne)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
 coefs_globaux = calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025])
 
 if coefs_globaux:
-    coef_global_df = pd.DataFrame([coefs_globaux])
-    coef_global_df.columns = [f"Mois {i}" for i in range(1, 13)]
-    coef_global_df.index = ["Coefficient Global"]
+    noms_mois_courts = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
     
-    st.markdown('<div class="coef-global-box">', unsafe_allow_html=True)
-    st.dataframe(coef_global_df, width='stretch')
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Format ultra compact : une seule ligne horizontale
+    ligne_coefs = "  ".join([f"<strong>{noms_mois_courts[i]}</strong>:{coefs_globaux.get(m, 0):.2f}" for i, m in enumerate(range(1, 13))])
+    
+    st.markdown(f"""
+    <div class="coef-global-ligne">
+        <span style="font-weight: bold; color: #1565C0;">Coef Global :</span> {ligne_coefs}
+    </div>
+    """, unsafe_allow_html=True)
 else:
     st.warning("Impossible de calculer le coefficient global pour les filtres sélectionnés.")
     coefs_globaux = {m: 0 for m in range(1, 13)}
