@@ -42,6 +42,13 @@ st.markdown("""
         margin: 10px 0;
     }
     
+    /* Style pour les entêtes des tableaux Streamlit (DataFrame) */
+    div[data-testid="stDataFrame"] table thead th {
+        background-color: #CC0000 !important;
+        color: white !important;
+        font-weight: bold !important;
+    }
+    
     /* Tableau compact coefficient global */
     .coef-global-table {
         background-color: #E3F2FD;
@@ -67,14 +74,6 @@ st.markdown("""
         padding: 5px 10px;
         text-align: center;
         border: 1px solid #ddd;
-    }
-    .coef-global-table .ligne-mois {
-        background-color: #CC0000;
-        color: white;
-        font-weight: bold;
-    }
-    .coef-global-table .ligne-coef {
-        background-color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -213,7 +212,6 @@ def interpreter_resultats(df_filtre):
 # --------------------------------------------------------------------
 @st.cache_data
 def charger_donnees_brutes(file_bytes, filename):
-    """Charge le fichier et retourne les données brutes filtrées."""
     if filename.endswith('.csv'):
         df_raw = pd.read_csv(BytesIO(file_bytes), sep='\t')
     else:
@@ -226,7 +224,6 @@ def charger_donnees_brutes(file_bytes, filename):
         st.stop()
     
     df = df_raw.copy()
-    
     df = df[df['Articles'].notna()]
     df = df[~df['Articles'].astype(str).str.contains('Total', case=False, na=False)]
     df = df[~df['Articles'].astype(str).str.contains('vide', case=False, na=False)]
@@ -258,10 +255,9 @@ def charger_donnees_brutes(file_bytes, filename):
     return df
 
 # --------------------------------------------------------------------
-# 5. FONCTION DE CALCUL DES COEFFICIENTS PAR ARTICLE-AGENCE
+# 5. CALCUL DES COEFFICIENTS PAR ARTICLE-AGENCE
 # --------------------------------------------------------------------
 def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
-    """Calcule les coefficients par combinaison article-agence."""
     df_periode = df_brut[df_brut['Année'].isin(annees)]
     
     if df_periode.empty:
@@ -312,12 +308,9 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 6. FONCTION DE CALCUL DU COEFFICIENT GLOBAL
+# 6. CALCUL DU COEFFICIENT GLOBAL
 # --------------------------------------------------------------------
 def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
-    """
-    Calcule le coefficient global par mois à partir des données brutes filtrées.
-    """
     df_periode = df_brut_filtre[df_brut_filtre['Année'].isin(annees)]
     
     if df_periode.empty:
@@ -394,7 +387,7 @@ if df_brut_filtre.empty:
     st.stop()
 
 # --------------------------------------------------------------------
-# 9. CALCUL DES COEFFICIENTS PAR ARTICLE-AGENCE
+# 9. CALCUL DES COEFFICIENTS
 # --------------------------------------------------------------------
 df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre, annees=[2024, 2025])
 
@@ -424,6 +417,7 @@ pivot.columns = noms_mois
 
 pivot['Total'] = pivot.sum(axis=1)
 
+# Afficher le tableau avec entêtes en rouge gras (via CSS)
 st.dataframe(pivot, width='stretch', height=600)
 
 # --------------------------------------------------------------------
@@ -437,24 +431,18 @@ if coefs_globaux:
     noms_mois_courts = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
     coefs_values = [coefs_globaux.get(m, 0) for m in range(1, 13)]
     
-    # Créer le tableau HTML avec entêtes en gras rouge
     html_table = '<div class="coef-global-table">'
     html_table += '<table>'
-    
-    # Ligne d'en-tête (mois) en rouge gras
     html_table += '<tr>'
     html_table += '<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">Mois</th>'
     for m in noms_mois_courts:
         html_table += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 5px 10px;">{m}</th>'
     html_table += '</tr>'
-    
-    # Ligne des coefficients
     html_table += '<tr>'
     html_table += '<td style="font-weight: bold; background-color: #E3F2FD; padding: 5px 10px;">Coefficient</td>'
     for v in coefs_values:
         html_table += f'<td style="background-color: white; padding: 5px 10px; text-align: center;">{v:.2f}</td>'
     html_table += '</tr>'
-    
     html_table += '</table></div>'
     
     st.markdown(html_table, unsafe_allow_html=True)
