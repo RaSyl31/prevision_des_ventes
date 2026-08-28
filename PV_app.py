@@ -29,7 +29,6 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    /* Gros titre en rouge sur fond blanc */
     .gros-titre-blanc {
         background-color: white;
         color: #CC0000 !important;
@@ -54,7 +53,6 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    /* Tableau HTML avec entêtes rouges */
     .table-rouge {
         background-color: white;
         border-radius: 5px;
@@ -92,7 +90,6 @@ st.markdown("""
         background-color: #f0f0f0;
     }
     
-    /* Tableau compact coefficient global */
     .coef-global-table {
         background-color: #E3F2FD;
         border-radius: 5px;
@@ -351,7 +348,7 @@ def calculer_coefficients_par_article_agence(df_brut, annees=[2024, 2025]):
     return pd.DataFrame(resultats)
 
 # --------------------------------------------------------------------
-# 6. CALCUL DU COEFFICIENT GLOBAL
+# 6. CALCUL DU COEFFICIENT GLOBAL (avec somme exacte = 12)
 # --------------------------------------------------------------------
 def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     df_periode = df_brut_filtre[df_brut_filtre['Année'].isin(annees)]
@@ -364,22 +361,35 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     if moyenne_generale <= 0:
         return None
     
-    coeffs = {}
+    coeffs_bruts = {}
     for mois in range(1, 13):
         ventes_mois = df_periode[df_periode['mois_num'] == mois]['ventes_hecto']
         if len(ventes_mois) > 0:
             moyenne_mois = ventes_mois.mean()
         else:
             moyenne_mois = 0
-        coeffs[mois] = moyenne_mois / moyenne_generale
+        coeffs_bruts[mois] = moyenne_mois / moyenne_generale
     
-    somme_coeffs = sum(coeffs.values())
+    somme_coeffs = sum(coeffs_bruts.values())
     if somme_coeffs > 0:
-        coeffs_normalises = {m: round((c / somme_coeffs) * 12, 2) for m, c in coeffs.items()}
+        coeffs_norm = {m: (c / somme_coeffs) * 12 for m, c in coeffs_bruts.items()}
+        
+        coeffs_finaux = {}
+        somme_arrondie = 0
+        for mois in range(1, 12):
+            coeff = round(coeffs_norm[mois], 2)
+            coeffs_finaux[mois] = coeff
+            somme_arrondie += coeff
+        
+        coeffs_finaux[12] = round(12 - somme_arrondie, 2)
+        
+        somme_finale = sum(coeffs_finaux.values())
+        if abs(somme_finale - 12) > 0.01:
+            coeffs_finaux[12] = round(coeffs_finaux[12] + (12 - somme_finale), 2)
+        
+        return coeffs_finaux
     else:
-        coeffs_normalises = coeffs
-    
-    return coeffs_normalises
+        return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
 # 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML
@@ -387,7 +397,6 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
 def generer_tableau_html(pivot_df):
     html = '<div class="table-rouge"><table>'
     
-    # En-tête
     html += '<tr>'
     html += '<th style="position: sticky; top: 0; left: 0; z-index: 20; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Segment</th>'
     html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Marque</th>'
@@ -400,7 +409,6 @@ def generer_tableau_html(pivot_df):
         html += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: center;">{col}</th>'
     html += '</tr>'
     
-    # Lignes de données
     for idx, row in pivot_df.iterrows():
         html += '<tr>'
         
@@ -503,7 +511,7 @@ st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 st.markdown('<span class="gros-titre-blanc">📊 Saisonnalité par Article</span>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 12. TABLEAU PRINCIPAL (HTML avec colonnes distinctes)
+# 12. TABLEAU PRINCIPAL
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
@@ -526,7 +534,7 @@ html_tableau = generer_tableau_html(pivot)
 st.markdown(html_tableau, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 13. COEFFICIENT GLOBAL PAR MOIS (avec Total)
+# 13. COEFFICIENT GLOBAL PAR MOIS (avec Total = 12)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
