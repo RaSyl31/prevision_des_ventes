@@ -45,8 +45,10 @@ st.markdown("""
         background-color: white;
         border-radius: 5px;
         overflow-x: auto;
+        overflow-y: auto;
         margin: 5px 0;
         border: 1px solid #ddd;
+        max-height: 600px;
     }
     .table-rouge table {
         border-collapse: collapse;
@@ -65,13 +67,17 @@ st.markdown("""
         z-index: 10;
     }
     .table-rouge td {
-        padding: 5px 10px;
+        padding: 5px 8px;
         text-align: center;
         border: 1px solid #e0e0e0;
     }
-    .table-rouge td:first-child {
+    .table-rouge td:first-child,
+    .table-rouge td:nth-child(2),
+    .table-rouge td:nth-child(3),
+    .table-rouge td:nth-child(4),
+    .table-rouge td:nth-child(5),
+    .table-rouge td:nth-child(6) {
         text-align: left;
-        font-weight: bold;
     }
     .table-rouge tr:nth-child(even) {
         background-color: #f9f9f9;
@@ -370,17 +376,22 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
     return coeffs_normalises
 
 # --------------------------------------------------------------------
-# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML AVEC EN-TÊTES ROUGES
+# 7. FONCTION POUR GÉNÉRER LE TABLEAU HTML AVEC COLONNES DISTINCTES
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df):
-    """Génère un tableau HTML avec entêtes rouges en gras."""
-    noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Total']
+    """Génère un tableau HTML avec entêtes rouges et colonnes distinctes."""
     
-    html = '<div class="table-rouge" style="max-height: 600px; overflow-y: auto;"><table>'
+    html = '<div class="table-rouge"><table>'
     
     # En-tête
     html += '<tr>'
-    html += '<th style="position: sticky; top: 0; left: 0; z-index: 20; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Article / Agence</th>'
+    html += '<th style="position: sticky; top: 0; left: 0; z-index: 20; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Segment</th>'
+    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Marque</th>'
+    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Format</th>'
+    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Contenance</th>'
+    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Article</th>'
+    html += '<th style="position: sticky; top: 0; z-index: 10; background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: left;">Agence</th>'
+    
     for col in pivot_df.columns:
         html += f'<th style="background-color: #CC0000; color: white; font-weight: bold; padding: 6px 10px; text-align: center;">{col}</th>'
     html += '</tr>'
@@ -388,12 +399,35 @@ def generer_tableau_html(pivot_df):
     # Lignes de données
     for idx, row in pivot_df.iterrows():
         html += '<tr>'
-        # Première colonne (index combiné)
-        index_str = ' | '.join([str(x) for x in idx]) if isinstance(idx, tuple) else str(idx)
-        html += f'<td style="text-align: left; font-weight: bold; padding: 5px 8px;">{index_str}</td>'
+        
+        if isinstance(idx, tuple):
+            segment_val = idx[0]
+            marque_val = idx[1]
+            format_val = idx[2]
+            contenance_val = idx[3]
+            article_val = idx[4]
+            agence_val = idx[5]
+        else:
+            segment_val = idx
+            marque_val = ''
+            format_val = ''
+            contenance_val = ''
+            article_val = ''
+            agence_val = ''
+        
+        html += f'<td style="text-align: left; padding: 5px 8px; font-weight: bold;">{segment_val}</td>'
+        html += f'<td style="text-align: left; padding: 5px 8px;">{marque_val}</td>'
+        html += f'<td style="text-align: left; padding: 5px 8px;">{format_val}</td>'
+        html += f'<td style="text-align: left; padding: 5px 8px;">{contenance_val}</td>'
+        html += f'<td style="text-align: left; padding: 5px 8px;">{article_val}</td>'
+        html += f'<td style="text-align: left; padding: 5px 8px;">{agence_val}</td>'
+        
         for col in pivot_df.columns:
             val = row[col]
-            html += f'<td style="padding: 5px 8px; text-align: center;">{val:.2f}</td>'
+            if pd.notna(val):
+                html += f'<td style="padding: 5px 8px; text-align: center;">{val:.2f}</td>'
+            else:
+                html += '<td style="padding: 5px 8px; text-align: center;">-</td>'
         html += '</tr>'
     
     html += '</table></div>'
@@ -460,11 +494,10 @@ if df_coefficients.empty:
 st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 
 # --------------------------------------------------------------------
-# 11. TABLEAU PRINCIPAL (HTML avec entêtes rouges)
+# 11. TABLEAU PRINCIPAL (HTML avec colonnes distinctes)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 
-# Créer le pivot
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
     columns='mois',
@@ -480,12 +513,12 @@ pivot.columns = noms_mois
 
 pivot['Total'] = pivot.sum(axis=1)
 
-# Afficher le tableau en HTML avec entêtes rouges
+# Afficher le tableau HTML
 html_tableau = generer_tableau_html(pivot)
 st.markdown(html_tableau, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------
-# 12. COEFFICIENT GLOBAL PAR MOIS (tableau 2 lignes avec entêtes rouges)
+# 12. COEFFICIENT GLOBAL PAR MOIS
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
 
