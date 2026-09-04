@@ -390,6 +390,15 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
+# 6.1 CALCUL DU TOTAL FILTRÉ
+# --------------------------------------------------------------------
+def calculer_total_filtre(df_brut_filtre):
+    """Calcule le total des ventes pour les données filtrées"""
+    if df_brut_filtre.empty:
+        return 0
+    return df_brut_filtre['ventes_hecto'].sum()
+
+# --------------------------------------------------------------------
 # 7. GÉNÉRATION DU TABLEAU HTML (avec ligne Grand Total)
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df, afficher_total=False):
@@ -550,33 +559,93 @@ st.markdown(interpreter_graphe(coefs_globaux))
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
-total_prevu = st.number_input("Total prévu (hectolitres)", min_value=0.0, value=1000000.0, step=1000.0)
+# Total prévu GLOBAL (fixe)
+total_prevu_global = st.number_input(
+    "Total prévu GLOBAL (hectolitres)", 
+    min_value=0.0, 
+    value=1000000.0, 
+    step=1000.0,
+    help="Ce total global reste fixe. Les filtres ajusteront la répartition de ce volume."
+)
 
-def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
-    annee_recente = df_brut['Année'].max()
-    annees_ref = [annee_recente - 1, annee_recente]
-    df_ref = df_brut[df_brut['Année'].isin(annees_ref)]
-    total_ref = df_ref['ventes_hecto'].sum()
-
-    poids_croise = df_ref.groupby(['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'])['ventes_hecto'].sum() / total_ref
-    previsions_croisees = {}
-    for (segment, marque, format, contenance, article, agence), poids in poids_croise.items():
-        previsions_croisees[(segment, marque, format, contenance, article, agence)] = {
-            mois: (total_prevu / 12) * coefs_globaux.get(mois, 1.0) * poids
-            for mois in range(1, 13)
-        }
-    return previsions_croisees
-
-previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, total_prevu)
-
-previsions_df = pd.DataFrame(previsions).T
-previsions_df.index = pd.MultiIndex.from_tuples(previsions_df.index, names=['Segment', 'Marque', 'Format', 'Contenance', 'Article', 'Agence'])
-previsions_df.columns = noms_mois
-previsions_df['Total'] = previsions_df.sum(axis=1)
-previsions_df = previsions_df.round(0)
-
-st.markdown(generer_tableau_html(previsions_df, afficher_total=True), unsafe_allow_html=True)
-
-st.download_button("Télécharger les prévisions (CSV)",
-                   data=previsions_df.to_csv().encode('utf-8'),
-                   file_name="previsions_annee_suivante.csv", mime="text/csv")
+if total_prevu_global > 0:
+    # Calcul du total pour les données filtrées
+    total_filtre_historique = calculer_total_filtre(df_brut_filtre)
+    
+    # Calcul du total global historique (sur toutes les données, pas seulement les filtres)
+    # On utilise df_brut complet pour le total global
+    total_global_historique = df_brut['ventes_hecto'].sum() if not df_brut.empty else 0
+    
+    # Vérification pour éviter la division par zéro
+    if total_global_historique > 0:
+        # Calcul du poids des éléments filtrés dans le global
+        poids_filtre = total_filtre_historique / total_global_historique
+        
+        # Calcul du volume prévu pour les éléments filtrés
+        volume_prevu_filtre = total_prevu_global * poids_filtre
+        
+        st.info(
+            f"📊 **Analyse des filtres :**\n"
+            f"• Volume historique global : **{total_global_historique:,.0f}** hl\n"
+            f"• Volume historique filtré : **{total_filtre_historique:,.0f}** hl\n"
+            f"• Poids des filtres : **{poids_filtre:.1%}** du global\n"
+            f"• Volume prévu pour les filtres : **{volume_prevu_filtre:,.0f}** hl"
+        )
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📊 Total global prévu", f"{total_prevu_global:,.0f} hl")
+        with col2:
+            st.metric("📈 Volume prévu (filtres)", f"{volume_prevu_filtre:,.0f} hl")
+        with col3:
+            st.metric("📊 Poids des filtres", f"{poids_filtre:.1%}")
+        
+        # Génération des prévisions en utilisant le volume prévu pour les filtres
+        # Modification de la fonction previsions_detaillees pour utiliser le volume filtré
+        def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
+            annee_recente = df_brut['Année'].max()
+            annees_ref = [annee_recente - 1, annee_recente]
+            df_ref = df_brut[df_brut['Année'].isin(annees_ref)]
+            total_ref = df_ref['ventes_hecto'].sum()
+            
+            if total_ref == 0:
+                return {}
+            
+            poids_croise = df_ref.groupby(['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'])['ventes_hecto'].sum() / total_ref
+            previsions_croisees = {}
+            for (segment, marque, format, contenance, article, agence), poids in poids_croise.items():
+                previsions_croisees[(segment, marque, format, contenance, article, agence)] = {
+                    mois: (total_prevu / 12) * coefs_globaux.get(mois, 1.0) * poids
+                    for mois in range(1, 13)
+                }
+            return previsions_croisees
+        
+        previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, volume_prevu_filtre)
+        
+        if previsions:
+            previsions_df = pd.DataFrame(previsions).T
+            previsions_df.index = pd.MultiIndex.from_tuples(previsions_df.index, names=['Segment', 'Marque', 'Format', 'Contenance', 'Article', 'Agence'])
+            previsions_df.columns = noms_mois
+            previsions_df['Total'] = previsions_df.sum(axis=1)
+            previsions_df = previsions_df.round(0)
+            
+            # Vérification : le total des prévisions doit correspondre au volume prévu filtré
+            total_prevu_calcule = previsions_df['Total'].sum()
+            if abs(total_prevu_calcule - volume_prevu_filtre) > 1:
+                st.warning(f"⚠️ Écart détecté : {volume_prevu_filtre:,.0f} hl prévu vs {total_prevu_calcule:,.0f} hl calculé")
+            
+            st.markdown(generer_tableau_html(previsions_df, afficher_total=True), unsafe_allow_html=True)
+            
+            # Téléchargement
+            st.download_button(
+                "Télécharger les prévisions (CSV)",
+                data=previsions_df.to_csv().encode('utf-8'),
+                file_name="previsions_annee_suivante.csv", 
+                mime="text/csv"
+            )
+        else:
+            st.warning("Impossible de générer les prévisions détaillées.")
+    else:
+        st.warning("Aucune donnée historique globale disponible pour le calcul des poids.")
+else:
+    st.info("Saisissez un total prévu global pour générer les prévisions détaillées.")
