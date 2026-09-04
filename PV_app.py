@@ -131,32 +131,88 @@ AGENCES = [
 SEGMENTS = ["1-BIERES", "2-BG", "3-EAUX", "5-ALCOMIX", "7-VIN"]
 
 ARTICLES_ACTIFS = [
-    "Booster Appel-Mix 50CL VER", "Booster Tornado 50CL VER VER",
-    "Caprice Ananas 100 cl VER", "Caprice Ananas 150 cl PET", "Caprice Ananas 30 cl VER",
-    "Caprice Bonbon Anglais 100 cl VER", "Caprice Bonbon Anglais 150 cl PET",
-    "Caprice Bonbon Anglais 30 cl VER", "Caprice Bonbon Anglais 35 cl PET",
-    "Caprice Bonbon Anglais 50 cl PET", "Caprice Grenadine 100 cl VER",
-    "Caprice Grenadine 150 cl PET", "Caprice Grenadine 30 cl VER",
-    "Caprice Grenadine 33 cl CAN", "Caprice Grenadine 35 cl PET", "Caprice Grenadine 50 cl PET",
-    "Caprice Orange 100 cl VER", "Caprice Orange 150 cl PET", "Caprice Orange 30 cl VER",
-    "Caprice Orange 33 cl CAN", "Caprice Orange 35 cl PET", "Caprice Orange 50 cl PET",
-    "Caprice Bonbon Anglais 33 cl CAN", "Caprice Citron 100 cl VER",
-    "Caprice Citron 150 cl PET", "Caprice Citron 30 cl VER", "Caprice Citron 50 cl PET",
-    "Tonic 100 cl VER", "Tonic 30 cl VER",
-    "World Cola 100cl VER", "World Cola 100cl WOCO VER", "World Cola 150cl PET",
-    "World Cola 30cl VER", "World Cola 30cl WOCO VER", "World Cola 33 cl CAN",
-    "World Cola 35cl PET", "World Cola 50cl PET",
-    "Beaufort 33 CL CAN", "Beaufort 33CL VER",
-    "FRESH 33 cl CAN", "THB Fresh 33 cl VER", "THB Fresh 65 cl VER",
-    "Gold 8 50 cl CAN", "Gold 8 50 cl VER", "Gold Blanche 33cl VER",
-    "Gold Blanche 50 cl CAN", "Gold Blanche 50 cl VER", "Gold Blonde 33 cl VER",
-    "Gold Blonde 50 cl CAN", "Gold Blonde 50 cl VER", "Gold Blonde 65 cl VER",
-    "Queen s 65 cl VER", "THB Pilsener 33 cl VER", "THB Pilsener 50 cl CAN",
+    "Booster Appel-Mix 50CL VER",
+    "Booster Tornado 50CL VER VER",
+    "Caprice Ananas 100 cl VER",
+    "Caprice Ananas 150 cl PET",
+    "Caprice Ananas 30 cl VER",
+    "Caprice Bonbon Anglais 100 cl VER",
+    "Caprice Bonbon Anglais 150 cl PET",
+    "Caprice Bonbon Anglais 20L FUT",
+    "Caprice Bonbon Anglais 30 cl VER",
+    "Caprice Bonbon Anglais 30L FUT",
+    "Caprice Bonbon Anglais 33 cl CAN",
+    "Caprice Bonbon Anglais 35 cl PET",
+    "Caprice Bonbon Anglais 50 cl PET",
+    "Caprice Grenadine 100 cl VER",
+    "Caprice Grenadine 150 cl PET",
+    "Caprice Grenadine 30 cl VER",
+    "Caprice Grenadine 33 cl CAN",
+    "Caprice Grenadine 35 cl PET",
+    "Caprice Grenadine 50 cl PET",
+    "Caprice Orange 100 cl VER",
+    "Caprice Orange 150 cl PET",
+    "Caprice Orange 20L FUT",
+    "Caprice Orange 30 cl VER",
+    "Caprice Orange 33 cl CAN",
+    "Caprice Orange 35 cl PET",
+    "Caprice Orange 50 cl PET",
+    "Tonic 100 cl VER",
+    "Tonic 30 cl VER",
+    "World Cola 100cl VER",
+    "World Cola 100cl WOCO VER",
+    "World Cola 150cl PET",
+    "World Cola 20L FUT",
+    "World Cola 30cl VER",
+    "World Cola 30cl WOCO VER",
+    "World Cola 33 cl CAN",
+    "World Cola 35cl PET",
+    "World Cola 50cl PET",
+    "Beaufort 33 CL CAN",
+    "Beaufort 33CL VER",
+    "Beaufort 50 CL CAN",
+    "FRESH 33 cl CAN",
+    "FRESH 33 cl EXPORT CAN",
+    "THB Fresh 33 cl VER",
+    "THB Fresh 65 cl VER",
+    "Gold 8 50 cl CAN",
+    "Gold 8 50 cl VER",
+    "Gold Amigo 33cl VER",
+    "Gold Blanche 20L FUT",
+    "Gold Blanche 33cl VER",
+    "Gold Blanche 50 cl CAN",
+    "Gold Blanche 50 cl VER",
+    "Gold Blonde 33 cl VER",
+    "Gold Blonde 50 cl CAN",
+    "Gold Blonde 50 cl VER",
+    "Gold Blonde 65 cl VER",
+    "Gold Rosee 33cl VER",
+    "Queen s 65 cl VER",
+    "THB Blanche 20L Export FUT",
+    "THB BLanche 20L FUT",
+    "THB Pilsener 20L Export FUT",
+    "THB Pilsener 20L FUT",
+    "THB Pilsener 30L Export FUT",
+    "THB Pilsener 30L FUT",
+    "THB Pilsener 33 cl CAN",
+    "THB Pilsener 33 cl VER",
+    "THB Pilsener 50 cl CAN",
     "THB Pilsener 65 cl VER",
-    "Cristal 100 cl VER", "Cristal 150 cl PET", "Cristal 30 cl VER", "Cristal 50 cl VER",
-    "Cristalline 100 cl PET", "Cristalline 200 cl PET",
-    "Eau vive 150 cl PET", "Eau vive 50 cl PET", "Eau vive 50 cl VER",
-    "FOSA 50 cl CAN", "XXL 30cl BOB VER", "XXL 30cl VER", "XXL 33 cl CAN", "XXL 35cl PET"
+    "THB Speciale NOEL 33 cl VER",
+    "Cristal 100 cl VER",
+    "Cristal 150 cl PET",
+    "Cristal 30 cl VER",
+    "Cristal 50 cl VER",
+    "Cristalline 100 cl PET",
+    "Cristalline 200 cl PET",
+    "Eau vive 150 cl PET",
+    "Eau vive 50 cl PET",
+    "Eau vive 50 cl VER",
+    "FOSA 50 cl CAN",
+    "XXL 30cl BOB VER",
+    "XXL 30cl VER",
+    "XXL 33 cl CAN",
+    "XXL 35cl PET"
 ]
 
 MARQUES = [
@@ -325,7 +381,7 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DU TABLEAU HTML (avec colonnes Segment, Marque, etc.)
+# 7. GÉNÉRATION DU TABLEAU HTML
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df):
     html = '<div class="table-rouge"><table>'
@@ -470,11 +526,10 @@ st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
 # --------------------------------------------------------------------
-# 9. PRÉVISIONS ANNÉE SUIVANTE (avec saisie manuelle du total)
+# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
-# Saisie manuelle du total prévu
 total_prevu = st.number_input("Total prévu (hectolitres)", min_value=0.0, value=1000000.0, step=1000.0)
 
 def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
@@ -483,58 +538,25 @@ def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
     df_ref = df_brut[df_brut['Année'].isin(annees_ref)]
     total_ref = df_ref['ventes_hecto'].sum()
 
-    poids_agence = df_ref.groupby('agence')['ventes_hecto'].sum() / total_ref
-    poids_article = df_ref.groupby('Référence')['ventes_hecto'].sum() / total_ref
-    poids_croise = df_ref.groupby(['agence', 'Référence'])['ventes_hecto'].sum() / total_ref
-
-    previsions_mensuelles_globales = {
-        mois: (total_prevu / 12) * coefs_globaux.get(mois, 1.0)
-        for mois in range(1, 13)
-    }
-
-    previsions_agence_mois = {}
-    for (agence, poids) in poids_agence.items():
-        previsions_agence_mois[agence] = {
-            mois: previsions_mensuelles_globales[mois] * poids
-            for mois in range(1, 13)
-        }
-
-    previsions_article_mois = {}
-    for (article, poids) in poids_article.items():
-        previsions_article_mois[article] = {
-            mois: previsions_mensuelles_globales[mois] * poids
-            for mois in range(1, 13)
-        }
-
+    poids_croise = df_ref.groupby(['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'])['ventes_hecto'].sum() / total_ref
     previsions_croisees = {}
-    for (agence, article), poids in poids_croise.items():
-        previsions_croisees[(agence, article)] = {
-            mois: previsions_mensuelles_globales[mois] * poids
+    for (segment, marque, format, contenance, article, agence), poids in poids_croise.items():
+        previsions_croisees[(segment, marque, format, contenance, article, agence)] = {
+            mois: (total_prevu / 12) * coefs_globaux.get(mois, 1.0) * poids
             for mois in range(1, 13)
         }
-
-    return {
-        'previsions_mensuelles_globales': previsions_mensuelles_globales,
-        'previsions_agence_mois': previsions_agence_mois,
-        'previsions_article_mois': previsions_article_mois,
-        'previsions_croisees': previsions_croisees
-    }
+    return previsions_croisees
 
 previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, total_prevu)
 
-# Tableau des prévisions par agence
-st.markdown("#### Prévisions par agence (mensuelles)")
-previsions_agence_df = pd.DataFrame(previsions['previsions_agence_mois']).T
-previsions_agence_df.columns = noms_mois
-st.dataframe(previsions_agence_df.round(0), width='stretch')
+previsions_df = pd.DataFrame(previsions).T
+previsions_df.index = pd.MultiIndex.from_tuples(previsions_df.index, names=['Segment', 'Marque', 'Format', 'Contenance', 'Article', 'Agence'])
+previsions_df.columns = noms_mois
+previsions_df['Total'] = previsions_df.sum(axis=1)
+previsions_df = previsions_df.round(0)
 
-# Tableau des prévisions par article
-st.markdown("#### Prévisions par article (mensuelles)")
-previsions_article_df = pd.DataFrame(previsions['previsions_article_mois']).T
-previsions_article_df.columns = noms_mois
-st.dataframe(previsions_article_df.round(0), width='stretch')
+st.markdown(generer_tableau_html(previsions_df), unsafe_allow_html=True)
 
-# Téléchargement
 st.download_button("Télécharger les prévisions (CSV)",
-                   data=previsions_article_df.to_csv().encode('utf-8'),
+                   data=previsions_df.to_csv().encode('utf-8'),
                    file_name="previsions_annee_suivante.csv", mime="text/csv")
