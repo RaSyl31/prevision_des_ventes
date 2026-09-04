@@ -90,6 +90,11 @@ st.markdown("""
         background-color: #f0f0f0;
     }
     
+    .table-rouge .ligne-total {
+        background-color: #E3F2FD;
+        font-weight: bold;
+    }
+    
     .coef-global-table {
         background-color: #E3F2FD;
         border-radius: 5px;
@@ -381,9 +386,9 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DU TABLEAU HTML
+# 7. GÉNÉRATION DU TABLEAU HTML (avec option ligne total)
 # --------------------------------------------------------------------
-def generer_tableau_html(pivot_df):
+def generer_tableau_html(pivot_df, afficher_total=False):
     html = '<div class="table-rouge"><table>'
     html += '<tr>'
     html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
@@ -412,6 +417,16 @@ def generer_tableau_html(pivot_df):
             val = row[col]
             html += f'<td style="padding:5px 8px; text-align:center;">{val:.2f}</td>' if pd.notna(val) else '<td style="padding:5px 8px; text-align:center;">-</td>'
         html += '</tr>'
+
+    if afficher_total:
+        # Ligne grand total
+        total_ligne = pivot_df.sum(axis=0)
+        html += '<tr class="ligne-total">'
+        html += '<td colspan="6" style="text-align:right; font-weight:bold; background-color:#E3F2FD; padding:5px 10px;">Grand Total</td>'
+        for col in pivot_df.columns:
+            html += f'<td style="padding:5px 8px; text-align:center; font-weight:bold; background-color:#E3F2FD;">{total_ligne[col]:.0f}</td>'
+        html += '</tr>'
+
     html += '</table></div>'
     return html
 
@@ -484,7 +499,7 @@ pivot = pivot.reindex(columns=mois_cols)
 noms_mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 pivot.columns = noms_mois
 pivot['Total'] = pivot.sum(axis=1)
-st.markdown(generer_tableau_html(pivot), unsafe_allow_html=True)
+st.markdown(generer_tableau_html(pivot, afficher_total=False), unsafe_allow_html=True)
 
 # Coefficient global
 st.markdown('<span class="titre-rouge">📊 Coefficient Global par Mois</span>', unsafe_allow_html=True)
@@ -526,7 +541,7 @@ st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
 # --------------------------------------------------------------------
-# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique)
+# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique avec grand total par mois)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
@@ -555,7 +570,7 @@ previsions_df.columns = noms_mois
 previsions_df['Total'] = previsions_df.sum(axis=1)
 previsions_df = previsions_df.round(0)
 
-st.markdown(generer_tableau_html(previsions_df), unsafe_allow_html=True)
+st.markdown(generer_tableau_html(previsions_df, afficher_total=True), unsafe_allow_html=True)
 
 st.download_button("Télécharger les prévisions (CSV)",
                    data=previsions_df.to_csv().encode('utf-8'),
