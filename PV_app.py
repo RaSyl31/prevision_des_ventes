@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from io import BytesIO
 import plotly.graph_objects as go
+import plotly.express as px
 
 # --------------------------------------------------------------------
 # Configuration de la page
@@ -556,18 +557,18 @@ else:
     st.warning("Impossible de calculer le coefficient global.")
     coefs_globaux = {m: 0 for m in range(1, 13)}
 
-# Graphique
+# Graphique des coefficients
 st.markdown('<span class="titre-rouge">📈 Variation mensuelle des coefficients</span>', unsafe_allow_html=True)
 coefs_norm_list = [coefs_globaux.get(m, 0) for m in range(1, 13)]
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=noms_mois, y=coefs_norm_list, mode='lines+markers',
+fig_coef = go.Figure()
+fig_coef.add_trace(go.Scatter(x=noms_mois, y=coefs_norm_list, mode='lines+markers',
                          name='Coefficient global (réel)', line=dict(color='blue', width=2), marker=dict(size=8)))
-fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
-fig.update_layout(title="Coefficients de saisonnalité globaux par mois (calcul réel à partir des ventes)",
+fig_coef.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Moyenne = 1.0")
+fig_coef.update_layout(title="Coefficients de saisonnalité globaux par mois (calcul réel à partir des ventes)",
                   xaxis_title="Mois", yaxis_title="Coefficient", height=500,
                   plot_bgcolor='white', xaxis=dict(showgrid=True, gridcolor='lightgray'),
                   yaxis=dict(showgrid=True, gridcolor='lightgray'))
-st.plotly_chart(fig, width='stretch')
+st.plotly_chart(fig_coef, width='stretch')
 
 # Interprétation
 st.markdown("### 🤖 Interprétation et Recommandations")
@@ -653,6 +654,97 @@ if total_prevu_global > 0:
                 st.warning(f"⚠️ Écart détecté : {volume_prevu_filtre:,.0f} hl prévu vs {total_prevu_calcule:,.0f} hl calculé")
             
             st.markdown(generer_tableau_html(previsions_df, afficher_total=True), unsafe_allow_html=True)
+            
+            # --------------------------------------------------------------------
+            # 9.1 GRAPHIQUE DES PRÉVISIONS MENSUELLES PAR VOLUME
+            # --------------------------------------------------------------------
+            st.markdown('<span class="titre-rouge">📈 Prévisions mensuelles par volume</span>', unsafe_allow_html=True)
+            
+            # Agrégation des prévisions par mois
+            previsions_par_mois = previsions_df[noms_mois].sum(axis=0)
+            
+            # Création du graphique
+            fig_prev = go.Figure()
+            
+            # Barres pour les volumes mensuels
+            fig_prev.add_trace(go.Bar(
+                x=noms_mois,
+                y=previsions_par_mois.values,
+                name='Volume prévu par mois',
+                marker_color='#CC0000',
+                text=previsions_par_mois.values,
+                texttemplate='%{text:,.0f}',
+                textposition='outside',
+                hovertemplate='<b>%{x}</b><br>Volume: %{y:,.0f} hl<extra></extra>'
+            ))
+            
+            # Ligne de la moyenne mensuelle
+            moyenne_mensuelle = volume_prevu_filtre / 12
+            fig_prev.add_trace(go.Scatter(
+                x=noms_mois,
+                y=[moyenne_mensuelle] * 12,
+                mode='lines',
+                name=f'Moyenne mensuelle ({moyenne_mensuelle:,.0f} hl)',
+                line=dict(color='blue', width=2, dash='dash'),
+                hovertemplate='<b>%{x}</b><br>Moyenne: %{y:,.0f} hl<extra></extra>'
+            ))
+            
+            # Mise en page du graphique
+            fig_prev.update_layout(
+                title=f"Répartition mensuelle des prévisions (Total: {volume_prevu_filtre:,.0f} hl)",
+                xaxis_title="Mois",
+                yaxis_title="Volume (hectolitres)",
+                height=500,
+                plot_bgcolor='white',
+                xaxis=dict(showgrid=True, gridcolor='lightgray'),
+                yaxis=dict(showgrid=True, gridcolor='lightgray'),
+                hovermode='x unified',
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+            
+            # Ajout des annotations pour les valeurs
+            for i, (mois, valeur) in enumerate(previsions_par_mois.items()):
+                ecart = ((valeur - moyenne_mensuelle) / moyenne_mensuelle) * 100 if moyenne_mensuelle > 0 else 0
+                couleur = '#4CAF50' if ecart > 0 else '#FF9800' if ecart < 0 else '#666'
+                fig_prev.add_annotation(
+                    x=mois,
+                    y=valeur,
+                    text=f"{ecart:+.0f}%",
+                    showarrow=False,
+                    font=dict(size=10, color=couleur),
+                    yshift=15
+                )
+            
+            st.plotly_chart(fig_prev, width='stretch')
+            
+            # Statistiques supplémentaires sur les prévisions
+            st.markdown("### 📊 Statistiques des prévisions mensuelles")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📈 Mois le plus haut", 
+                         f"{previsions_par_mois.idxmax()}", 
+                         f"{previsions_par_mois.max():,.0f} hl")
+            with col2:
+                st.metric("📉 Mois le plus bas", 
+                         f"{previsions_par_mois.idxmin()}", 
+                         f"{previsions_par_mois.min():,.0f} hl")
+            with col3:
+                ecart_max = ((previsions_par_mois.max() - moyenne_mensuelle) / moyenne_mensuelle * 100) if moyenne_mensuelle > 0 else 0
+                st.metric("📊 Écart max vs moyenne", 
+                         f"{ecart_max:+.1f}%", 
+                         f"{previsions_par_mois.max() - moyenne_mensuelle:+,.0f} hl")
+            with col4:
+                ecart_min = ((previsions_par_mois.min() - moyenne_mensuelle) / moyenne_mensuelle * 100) if moyenne_mensuelle > 0 else 0
+                st.metric("📊 Écart min vs moyenne", 
+                         f"{ecart_min:+.1f}%", 
+                         f"{previsions_par_mois.min() - moyenne_mensuelle:+,.0f} hl")
             
             # Téléchargement
             st.download_button(
