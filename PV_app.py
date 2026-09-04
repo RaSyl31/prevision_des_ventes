@@ -464,27 +464,46 @@ if df_brut.empty:
 
 # Filtres interactifs
 st.sidebar.header("Filtres")
+
+# Filtre Agence
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
+# Filtre Segment
 df_temp = df_brut[df_brut['agence'].isin(selected_agences)] if selected_agences else df_brut
 segments_options = sorted(df_temp['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
+# Filtre Marque
 df_temp = df_temp[df_temp['segment'].isin(selected_segments)] if selected_segments else df_temp
 marques_options = sorted(df_temp['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
+# Filtre Format
 df_temp = df_temp[df_temp['marque'].isin(selected_marques)] if selected_marques else df_temp
+formats_options = sorted(df_temp['format'].unique())
+selected_formats = st.sidebar.multiselect("Format", options=formats_options, default=formats_options)
+
+# Filtre Contenance
+df_temp = df_temp[df_temp['format'].isin(selected_formats)] if selected_formats else df_temp
+contenances_options = sorted(df_temp['contenances'].unique())
+selected_contenances = st.sidebar.multiselect("Contenance", options=contenances_options, default=contenances_options)
+
+# Filtre Article
+df_temp = df_temp[df_temp['contenances'].isin(selected_contenances)] if selected_contenances else df_temp
 articles_options = sorted(df_temp['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
+# Application de tous les filtres
 df_brut_filtre = df_brut[
     (df_brut['agence'].isin(selected_agences)) &
     (df_brut['segment'].isin(selected_segments)) &
     (df_brut['marque'].isin(selected_marques)) &
+    (df_brut['format'].isin(selected_formats)) &
+    (df_brut['contenances'].isin(selected_contenances)) &
     (df_brut['Référence'].isin(selected_articles))
 ]
+
 if df_brut_filtre.empty:
     st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
@@ -601,7 +620,6 @@ if total_prevu_global > 0:
             st.metric("📊 Poids des filtres", f"{poids_filtre:.1%}")
         
         # Génération des prévisions en utilisant le volume prévu pour les filtres
-        # Modification de la fonction previsions_detaillees pour utiliser le volume filtré
         def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
             annee_recente = df_brut['Année'].max()
             annees_ref = [annee_recente - 1, annee_recente]
