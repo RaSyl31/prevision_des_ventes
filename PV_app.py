@@ -325,17 +325,17 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DU TABLEAU HTML
+# 7. GÉNÉRATION DU TABLEAU HTML (avec colonnes Segment, Marque, etc.)
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df):
     html = '<div class="table-rouge"><table>'
     html += '<tr>'
-    html += '<th style="position: sticky; top:0; left:0; z-index:20; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
-    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
-    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Format</th>'
-    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Contenance</th>'
-    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Article</th>'
-    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Agence</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Format</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Contenance</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Article</th>'
+    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Agence</th>'
     for col in pivot_df.columns:
         html += f'<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:center;">{col}</th>'
     html += '</tr>'
@@ -346,7 +346,7 @@ def generer_tableau_html(pivot_df):
             segment_val, marque_val, format_val, contenance_val, article_val, agence_val = vals
         else:
             segment_val, marque_val, format_val, contenance_val, article_val, agence_val = idx, '', '', '', '', ''
-        html += f'<td style="text-align:left; padding:5px 8px; font-weight:bold;">{segment_val}</td>'
+        html += f'<td style="text-align:left; padding:5px 8px;">{segment_val}</td>'
         html += f'<td style="text-align:left; padding:5px 8px;">{marque_val}</td>'
         html += f'<td style="text-align:left; padding:5px 8px;">{format_val}</td>'
         html += f'<td style="text-align:left; padding:5px 8px;">{contenance_val}</td>'
@@ -377,11 +377,8 @@ if df_brut.empty:
     st.warning("Aucune donnée valide trouvée.")
     st.stop()
 
-# --------------------------------------------------------------------
-# FILTRES INTERACTIFS EN CASCADE
-# --------------------------------------------------------------------
+# Filtres interactifs
 st.sidebar.header("Filtres")
-
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
@@ -403,14 +400,11 @@ df_brut_filtre = df_brut[
     (df_brut['marque'].isin(selected_marques)) &
     (df_brut['Référence'].isin(selected_articles))
 ]
-
 if df_brut_filtre.empty:
     st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
     st.stop()
 
-# --------------------------------------------------------------------
-# CALCULS
-# --------------------------------------------------------------------
+# Coefficients
 df_coefficients = calculer_coefficients_par_article_agence(df_brut_filtre)
 if df_coefficients.empty:
     st.warning("Aucun coefficient calculé pour les filtres sélectionnés.")
@@ -421,7 +415,7 @@ st.success(f"Calcul terminé : {len(df_coefficients)} coefficients")
 # Gros titre
 st.markdown('<span class="gros-titre-blanc">📊 Saisonnalité par Article</span>', unsafe_allow_html=True)
 
-# Tableau principal
+# Tableau des coefficients
 st.markdown('<span class="titre-rouge">Coefficients de saisonnalité mensuels</span>', unsafe_allow_html=True)
 pivot = df_coefficients.pivot_table(
     index=['segment', 'marque', 'format', 'contenances', 'Référence', 'agence'],
@@ -471,25 +465,20 @@ fig.update_layout(title="Coefficients de saisonnalité globaux par mois (calcul 
                   yaxis=dict(showgrid=True, gridcolor='lightgray'))
 st.plotly_chart(fig, width='stretch')
 
-# Interprétation basée uniquement sur le graphique
+# Interprétation
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
 # --------------------------------------------------------------------
-# 9. PRÉVISIONS ANNÉE SUIVANTE
+# 9. PRÉVISIONS ANNÉE SUIVANTE (avec saisie manuelle du total)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
-# Taux de croissance réglable
-taux_croissance = st.slider("Taux de croissance (%)", min_value=-20, max_value=20, value=0, step=1) / 100
+# Saisie manuelle du total prévu
+total_prevu = st.number_input("Total prévu (hectolitres)", min_value=0.0, value=1000000.0, step=1000.0)
 
-# Fonction de prévision
-def previsions_detaillees(df_brut, coefs_globaux, taux_croissance=0.0):
+def previsions_detaillees(df_brut, coefs_globaux, total_prevu):
     annee_recente = df_brut['Année'].max()
-    df_recent = df_brut[df_brut['Année'] == annee_recente]
-    total_recent = df_recent['ventes_hecto'].sum()
-    total_prevu = total_recent * (1 + taux_croissance)
-
     annees_ref = [annee_recente - 1, annee_recente]
     df_ref = df_brut[df_brut['Année'].isin(annees_ref)]
     total_ref = df_ref['ventes_hecto'].sum()
@@ -525,36 +514,24 @@ def previsions_detaillees(df_brut, coefs_globaux, taux_croissance=0.0):
         }
 
     return {
-        'total_prevu': total_prevu,
         'previsions_mensuelles_globales': previsions_mensuelles_globales,
         'previsions_agence_mois': previsions_agence_mois,
         'previsions_article_mois': previsions_article_mois,
         'previsions_croisees': previsions_croisees
     }
 
-previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, taux_croissance)
-
-# Afficher le total prévu
-st.markdown(f"### Total prévu : **{previsions['total_prevu']:,.0f}** hectolitres")
-
-# Tableau des prévisions mensuelles globales
-previsions_globales_df = pd.DataFrame(
-    [previsions['previsions_mensuelles_globales']],
-    index=["Prévisions globales"]
-)
-previsions_globales_df.columns = [f"Mois {i}" for i in range(1, 13)]
-st.dataframe(previsions_globales_df.round(0), width='stretch')
+previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, total_prevu)
 
 # Tableau des prévisions par agence
 st.markdown("#### Prévisions par agence (mensuelles)")
 previsions_agence_df = pd.DataFrame(previsions['previsions_agence_mois']).T
-previsions_agence_df.columns = [f"Mois {i}" for i in range(1, 13)]
+previsions_agence_df.columns = noms_mois
 st.dataframe(previsions_agence_df.round(0), width='stretch')
 
-# Tableau des prévisions par article (extrait)
+# Tableau des prévisions par article
 st.markdown("#### Prévisions par article (mensuelles)")
 previsions_article_df = pd.DataFrame(previsions['previsions_article_mois']).T
-previsions_article_df.columns = [f"Mois {i}" for i in range(1, 13)]
+previsions_article_df.columns = noms_mois
 st.dataframe(previsions_article_df.round(0), width='stretch')
 
 # Téléchargement
