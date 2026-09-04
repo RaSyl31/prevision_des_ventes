@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # --------------------------------------------------------------------
 # Configuration de la page
 # --------------------------------------------------------------------
-st.set_page_config(page_title="Coefficients de Saisonnalité", layout="wide")
+st.set_page_config(page_title="Coefficients de Saisonnalité & Prévisions", layout="wide")
 
 # --------------------------------------------------------------------
 # CSS personnalisé
@@ -178,7 +178,7 @@ def nettoyer_nombre(val):
         return 0.0
 
 # --------------------------------------------------------------------
-# 3. INTERPRÉTATION DU GRAPHIQUE (coefficients globaux)
+# 3. INTERPRÉTATION DU GRAPHIQUE
 # --------------------------------------------------------------------
 def interpreter_graphe(coefs_globaux):
     if not coefs_globaux:
@@ -382,26 +382,21 @@ if df_brut.empty:
 # --------------------------------------------------------------------
 st.sidebar.header("Filtres")
 
-# 1. Agence (toutes les agences disponibles)
 agences_options = sorted(df_brut['agence'].unique())
 selected_agences = st.sidebar.multiselect("Agence", options=agences_options, default=agences_options)
 
-# 2. Segment (selon les agences sélectionnées)
 df_temp = df_brut[df_brut['agence'].isin(selected_agences)] if selected_agences else df_brut
 segments_options = sorted(df_temp['segment'].unique())
 selected_segments = st.sidebar.multiselect("Segment", options=segments_options, default=segments_options)
 
-# 3. Marque (selon les segments et agences sélectionnés)
 df_temp = df_temp[df_temp['segment'].isin(selected_segments)] if selected_segments else df_temp
 marques_options = sorted(df_temp['marque'].unique())
 selected_marques = st.sidebar.multiselect("Marque", options=marques_options, default=marques_options)
 
-# 4. Article (selon les marques, segments et agences sélectionnés)
 df_temp = df_temp[df_temp['marque'].isin(selected_marques)] if selected_marques else df_temp
 articles_options = sorted(df_temp['Référence'].unique())
 selected_articles = st.sidebar.multiselect("Article", options=articles_options, default=articles_options)
 
-# Appliquer tous les filtres
 df_brut_filtre = df_brut[
     (df_brut['agence'].isin(selected_agences)) &
     (df_brut['segment'].isin(selected_segments)) &
@@ -480,7 +475,89 @@ st.plotly_chart(fig, width='stretch')
 st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
+# --------------------------------------------------------------------
+# 9. PRÉVISIONS ANNÉE SUIVANTE
+# --------------------------------------------------------------------
+st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
+
+# Taux de croissance réglable
+taux_croissance = st.slider("Taux de croissance (%)", min_value=-20, max_value=20, value=0, step=1) / 100
+
+# Fonction de prévision
+def previsions_detaillees(df_brut, coefs_globaux, taux_croissance=0.0):
+    annee_recente = df_brut['Année'].max()
+    df_recent = df_brut[df_brut['Année'] == annee_recente]
+    total_recent = df_recent['ventes_hecto'].sum()
+    total_prevu = total_recent * (1 + taux_croissance)
+
+    annees_ref = [annee_recente - 1, annee_recente]
+    df_ref = df_brut[df_brut['Année'].isin(annees_ref)]
+    total_ref = df_ref['ventes_hecto'].sum()
+
+    poids_agence = df_ref.groupby('agence')['ventes_hecto'].sum() / total_ref
+    poids_article = df_ref.groupby('Référence')['ventes_hecto'].sum() / total_ref
+    poids_croise = df_ref.groupby(['agence', 'Référence'])['ventes_hecto'].sum() / total_ref
+
+    previsions_mensuelles_globales = {
+        mois: (total_prevu / 12) * coefs_globaux.get(mois, 1.0)
+        for mois in range(1, 13)
+    }
+
+    previsions_agence_mois = {}
+    for (agence, poids) in poids_agence.items():
+        previsions_agence_mois[agence] = {
+            mois: previsions_mensuelles_globales[mois] * poids
+            for mois in range(1, 13)
+        }
+
+    previsions_article_mois = {}
+    for (article, poids) in poids_article.items():
+        previsions_article_mois[article] = {
+            mois: previsions_mensuelles_globales[mois] * poids
+            for mois in range(1, 13)
+        }
+
+    previsions_croisees = {}
+    for (agence, article), poids in poids_croise.items():
+        previsions_croisees[(agence, article)] = {
+            mois: previsions_mensuelles_globales[mois] * poids
+            for mois in range(1, 13)
+        }
+
+    return {
+        'total_prevu': total_prevu,
+        'previsions_mensuelles_globales': previsions_mensuelles_globales,
+        'previsions_agence_mois': previsions_agence_mois,
+        'previsions_article_mois': previsions_article_mois,
+        'previsions_croisees': previsions_croisees
+    }
+
+previsions = previsions_detaillees(df_brut_filtre, coefs_globaux, taux_croissance)
+
+# Afficher le total prévu
+st.markdown(f"### Total prévu : **{previsions['total_prevu']:,.0f}** hectolitres")
+
+# Tableau des prévisions mensuelles globales
+previsions_globales_df = pd.DataFrame(
+    [previsions['previsions_mensuelles_globales']],
+    index=["Prévisions globales"]
+)
+previsions_globales_df.columns = [f"Mois {i}" for i in range(1, 13)]
+st.dataframe(previsions_globales_df.round(0), width='stretch')
+
+# Tableau des prévisions par agence
+st.markdown("#### Prévisions par agence (mensuelles)")
+previsions_agence_df = pd.DataFrame(previsions['previsions_agence_mois']).T
+previsions_agence_df.columns = [f"Mois {i}" for i in range(1, 13)]
+st.dataframe(previsions_agence_df.round(0), width='stretch')
+
+# Tableau des prévisions par article (extrait)
+st.markdown("#### Prévisions par article (mensuelles)")
+previsions_article_df = pd.DataFrame(previsions['previsions_article_mois']).T
+previsions_article_df.columns = [f"Mois {i}" for i in range(1, 13)]
+st.dataframe(previsions_article_df.round(0), width='stretch')
+
 # Téléchargement
-csv = pivot.reset_index().to_csv(index=False).encode('utf-8')
-st.download_button("Télécharger les coefficients (CSV)", data=csv,
-                   file_name="coefficients_saisonnalite.csv", mime="text/csv")
+st.download_button("Télécharger les prévisions (CSV)",
+                   data=previsions_article_df.to_csv().encode('utf-8'),
+                   file_name="previsions_annee_suivante.csv", mime="text/csv")
