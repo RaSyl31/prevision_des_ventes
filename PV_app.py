@@ -708,7 +708,7 @@ if total_prevu_global > 0:
                 )
             )
             
-            # Ajout des annotations pour les valeurs
+            # Ajout des annotations pour les pourcentages d'écart
             for i, (mois, valeur) in enumerate(previsions_par_mois.items()):
                 ecart = ((valeur - moyenne_mensuelle) / moyenne_mensuelle) * 100 if moyenne_mensuelle > 0 else 0
                 couleur = '#4CAF50' if ecart > 0 else '#FF9800' if ecart < 0 else '#666'
@@ -722,29 +722,6 @@ if total_prevu_global > 0:
                 )
             
             st.plotly_chart(fig_prev, width='stretch')
-            
-            # Statistiques supplémentaires sur les prévisions
-            st.markdown("### 📊 Statistiques des prévisions mensuelles")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("📈 Mois le plus haut", 
-                         f"{previsions_par_mois.idxmax()}", 
-                         f"{previsions_par_mois.max():,.0f} hl")
-            with col2:
-                st.metric("📉 Mois le plus bas", 
-                         f"{previsions_par_mois.idxmin()}", 
-                         f"{previsions_par_mois.min():,.0f} hl")
-            with col3:
-                ecart_max = ((previsions_par_mois.max() - moyenne_mensuelle) / moyenne_mensuelle * 100) if moyenne_mensuelle > 0 else 0
-                st.metric("📊 Écart max vs moyenne", 
-                         f"{ecart_max:+.1f}%", 
-                         f"{previsions_par_mois.max() - moyenne_mensuelle:+,.0f} hl")
-            with col4:
-                ecart_min = ((previsions_par_mois.min() - moyenne_mensuelle) / moyenne_mensuelle * 100) if moyenne_mensuelle > 0 else 0
-                st.metric("📊 Écart min vs moyenne", 
-                         f"{ecart_min:+.1f}%", 
-                         f"{previsions_par_mois.min() - moyenne_mensuelle:+,.0f} hl")
             
             # Téléchargement
             st.download_button(
