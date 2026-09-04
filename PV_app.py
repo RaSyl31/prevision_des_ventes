@@ -90,9 +90,12 @@ st.markdown("""
         background-color: #f0f0f0;
     }
     
-    .table-rouge .ligne-total {
+    .ligne-total {
         background-color: #E3F2FD;
         font-weight: bold;
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
     }
     
     .coef-global-table {
@@ -386,20 +389,31 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DU TABLEAU HTML (avec option ligne total)
+# 7. GÉNÉRATION DU TABLEAU HTML (avec ligne Grand Total figée)
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df, afficher_total=False):
     html = '<div class="table-rouge"><table>'
     html += '<tr>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Format</th>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Contenance</th>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Article</th>'
-    html += '<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Agence</th>'
+    html += '<th style="position: sticky; top:0; left:0; z-index:20; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Format</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Contenance</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Article</th>'
+    html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Agence</th>'
     for col in pivot_df.columns:
-        html += f'<th style="background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:center;">{col}</th>'
+        html += f'<th style="position: sticky; top:0; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:center;">{col}</th>'
     html += '</tr>'
+
+    # Ligne Grand Total (figée en bas)
+    if afficher_total:
+        total_ligne = pivot_df.sum(axis=0)
+        html += '<tr class="ligne-total" style="position: sticky; bottom: 0; z-index: 20; background-color: #E3F2FD; font-weight: bold;">'
+        html += '<td colspan="6" style="text-align:right; padding:5px 10px; background-color:#E3F2FD;">Grand Total</td>'
+        for col in pivot_df.columns:
+            html += f'<td style="padding:5px 8px; text-align:center; background-color:#E3F2FD;">{total_ligne[col]:.0f}</td>'
+        html += '</tr>'
+
+    # Lignes de données
     for idx, row in pivot_df.iterrows():
         html += '<tr>'
         if isinstance(idx, tuple):
@@ -416,15 +430,6 @@ def generer_tableau_html(pivot_df, afficher_total=False):
         for col in pivot_df.columns:
             val = row[col]
             html += f'<td style="padding:5px 8px; text-align:center;">{val:.2f}</td>' if pd.notna(val) else '<td style="padding:5px 8px; text-align:center;">-</td>'
-        html += '</tr>'
-
-    if afficher_total:
-        # Ligne grand total
-        total_ligne = pivot_df.sum(axis=0)
-        html += '<tr class="ligne-total">'
-        html += '<td colspan="6" style="text-align:right; font-weight:bold; background-color:#E3F2FD; padding:5px 10px;">Grand Total</td>'
-        for col in pivot_df.columns:
-            html += f'<td style="padding:5px 8px; text-align:center; font-weight:bold; background-color:#E3F2FD;">{total_ligne[col]:.0f}</td>'
         html += '</tr>'
 
     html += '</table></div>'
@@ -541,7 +546,7 @@ st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
 # --------------------------------------------------------------------
-# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique avec grand total par mois)
+# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique avec grand total figé)
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
