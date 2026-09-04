@@ -61,6 +61,7 @@ st.markdown("""
         margin: 5px 0;
         border: 1px solid #ddd;
         max-height: 600px;
+        position: relative;
     }
     .table-rouge table {
         border-collapse: collapse;
@@ -389,12 +390,11 @@ def calculer_coefficient_global(df_brut_filtre, annees=[2024, 2025]):
         return {m: 0 for m in range(1, 13)}
 
 # --------------------------------------------------------------------
-# 7. GÉNÉRATION DU TABLEAU HTML (avec ligne Grand Total figée)
+# 7. GÉNÉRATION DU TABLEAU HTML (avec ligne Grand Total)
 # --------------------------------------------------------------------
 def generer_tableau_html(pivot_df, afficher_total=False):
-    html = '<div class="table-rouge" style="position: relative; max-height: 600px; overflow-y: auto;"><table>'
+    html = '<div class="table-rouge" style="position: relative;"><table>'
     
-    # En-tête
     html += '<tr>'
     html += '<th style="position: sticky; top:0; left:0; z-index:20; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Segment</th>'
     html += '<th style="position: sticky; top:0; z-index:10; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:left;">Marque</th>'
@@ -406,7 +406,6 @@ def generer_tableau_html(pivot_df, afficher_total=False):
         html += f'<th style="position: sticky; top:0; background-color:#CC0000; color:white; font-weight:bold; padding:6px 10px; text-align:center;">{col}</th>'
     html += '</tr>'
 
-    # Lignes de données
     for idx, row in pivot_df.iterrows():
         html += '<tr>'
         if isinstance(idx, tuple):
@@ -425,7 +424,6 @@ def generer_tableau_html(pivot_df, afficher_total=False):
             html += f'<td style="padding:5px 8px; text-align:center;">{val:.2f}</td>' if pd.notna(val) else '<td style="padding:5px 8px; text-align:center;">-</td>'
         html += '</tr>'
 
-    # Ligne Grand Total (figée en bas)
     if afficher_total:
         total_ligne = pivot_df.sum(axis=0)
         html += '<tr class="ligne-total" style="position: sticky; bottom: 0; z-index: 20; background-color: #E3F2FD; font-weight: bold;">'
@@ -548,7 +546,7 @@ st.markdown("### 🤖 Interprétation et Recommandations")
 st.markdown(interpreter_graphe(coefs_globaux))
 
 # --------------------------------------------------------------------
-# 9. PRÉVISIONS ANNÉE SUIVANTE (tableau unique avec grand total figé)
+# 9. PRÉVISIONS ANNÉE SUIVANTE
 # --------------------------------------------------------------------
 st.markdown('<span class="titre-rouge">🔮 Prévisions Année Suivante</span>', unsafe_allow_html=True)
 
